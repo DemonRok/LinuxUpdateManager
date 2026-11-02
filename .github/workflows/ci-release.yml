@@ -48,7 +48,23 @@ jobs:
         run: node --test .github/scripts/release-version.test.mjs
         shell: bash
 
-      - name: Scan repository history for secrets
+      - name: Validate tracked repository contents
+        run: node .github/scripts/validate-repository.mjs
+        shell: bash
+
+  secret-scan:
+    name: Scan repository history for secrets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Scan with Gitleaks
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -56,14 +72,10 @@ jobs:
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
           GITLEAKS_VERSION: "8.30.1"
 
-      - name: Validate tracked repository contents
-        run: node .github/scripts/validate-repository.mjs
-        shell: bash
-
   release:
     name: Package and publish eligible release
     if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
-    needs: validate
+    needs: [validate, secret-scan]
     runs-on: windows-latest
     permissions:
       contents: write
