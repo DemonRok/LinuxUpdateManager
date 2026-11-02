@@ -17,6 +17,7 @@ internal sealed class OperationHistoryForm : Form
     private readonly DataGridView _grid = new();
     private readonly NumericUpDown _retentionDays = new() { Minimum = 0, Maximum = 3650, Width = 78 };
     private readonly Label _status = new() { AutoSize = true, ForeColor = Color.DimGray };
+    private readonly Label _entryCount = new() { AutoSize = true, ForeColor = Color.DimGray };
     private readonly System.Windows.Forms.Timer _filterTimer = new() { Interval = 300 };
     private IReadOnlyList<OperationHistoryEntry> _entries = [];
 
@@ -32,10 +33,11 @@ internal sealed class OperationHistoryForm : Form
         Text = AppLocalizer.Get("HistoryTitle");
         Icon = AppIcon.Create();
         StartPosition = FormStartPosition.CenterParent;
-        ClientSize = new Size(1050, 640);
+        ClientSize = new Size(1050, 560);
         MinimumSize = new Size(820, 500);
 
         BuildLayout();
+        Shown += (_, _) => FitToWorkingArea();
         Load += async (_, _) => await RefreshEntriesAsync();
         _filterTimer.Tick += async (_, _) =>
         {
@@ -55,6 +57,27 @@ internal sealed class OperationHistoryForm : Form
         };
     }
 
+    private void FitToWorkingArea()
+    {
+        var workingArea = Screen.FromControl(this).WorkingArea;
+        const int screenMargin = 12;
+        var maxWindowWidth = Math.Max(420, workingArea.Width - screenMargin);
+        var maxWindowHeight = Math.Max(320, workingArea.Height - screenMargin);
+        var nonClientWidth = Width - ClientSize.Width;
+        var nonClientHeight = Height - ClientSize.Height;
+
+        MinimumSize = new Size(
+            Math.Min(MinimumSize.Width, maxWindowWidth),
+            Math.Min(MinimumSize.Height, maxWindowHeight));
+
+        var clientWidth = Math.Min(ClientSize.Width, maxWindowWidth - nonClientWidth);
+        var clientHeight = Math.Min(ClientSize.Height, maxWindowHeight - nonClientHeight);
+        ClientSize = new Size(clientWidth, clientHeight);
+        Location = new Point(
+            workingArea.Left + (workingArea.Width - Width) / 2,
+            workingArea.Top + (workingArea.Height - Height) / 2);
+    }
+
     private void BuildLayout()
     {
         var root = new TableLayoutPanel
@@ -67,7 +90,7 @@ internal sealed class OperationHistoryForm : Form
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
 
         var title = new Label
         {
@@ -78,13 +101,21 @@ internal sealed class OperationHistoryForm : Form
         };
         root.Controls.Add(title, 0, 0);
 
-        var filters = new FlowLayoutPanel
+        var filters = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            ColumnCount = 4,
+            RowCount = 1
         };
+        filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 198));
+        filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 171));
+        filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 141));
+        filters.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         _search.PlaceholderText = AppLocalizer.Get("HistorySearchPlaceholder");
+        _search.Margin = Padding.Empty;
+        _search.Anchor = AnchorStyles.Left;
         _operationFilter.Items.Add(new HistoryFilterItem("", AppLocalizer.Get("HistoryAllOperations")));
         AddOperationFilter(HistoryOperationTypes.SshConnectionCheck, "HistoryOperationSshConnectionCheck");
         AddOperationFilter(HistoryOperationTypes.PrivilegeCheck, "HistoryOperationPrivilegeCheck");
@@ -96,12 +127,18 @@ internal sealed class OperationHistoryForm : Form
         AddResultFilter(HistoryOperationResults.Failed, "HistoryResultFailed");
         AddResultFilter(HistoryOperationResults.Cancelled, "HistoryResultCancelled");
         _resultFilter.SelectedIndex = 0;
-        filters.Controls.Add(_search);
-        filters.Controls.Add(_operationFilter);
-        filters.Controls.Add(_resultFilter);
+        _operationFilter.Margin = Padding.Empty;
+        _operationFilter.Anchor = AnchorStyles.Left;
+        _resultFilter.Margin = Padding.Empty;
+        _resultFilter.Anchor = AnchorStyles.Left;
         var refresh = new Button { Text = AppLocalizer.Get("Refresh"), AutoSize = true };
+        refresh.Margin = Padding.Empty;
+        refresh.Anchor = AnchorStyles.Left;
         refresh.Click += async (_, _) => await RefreshEntriesAsync();
-        filters.Controls.Add(refresh);
+        filters.Controls.Add(_search, 0, 0);
+        filters.Controls.Add(_operationFilter, 1, 0);
+        filters.Controls.Add(_resultFilter, 2, 0);
+        filters.Controls.Add(refresh, 3, 0);
         root.Controls.Add(filters, 0, 1);
 
         _grid.Dock = DockStyle.Fill;
@@ -120,41 +157,75 @@ internal sealed class OperationHistoryForm : Form
         _grid.Columns.Add("Packages", AppLocalizer.Get("HistoryPackages"));
         root.Controls.Add(_grid, 0, 2);
 
-        var footer = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
+        var footer = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            ColumnCount = 4,
+            RowCount = 1
+        };
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         var retention = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false
+            WrapContents = false,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            Anchor = AnchorStyles.Left
         };
         retention.Controls.Add(new Label
         {
             Text = AppLocalizer.Get("HistoryRetention"),
             AutoSize = true,
-            Margin = new Padding(0, 8, 5, 0)
+            Margin = new Padding(0, 5, 5, 0)
         });
         _retentionDays.Value = _configuration.HistoryRetentionDays;
+        _retentionDays.Margin = new Padding(0, 1, 0, 0);
         retention.Controls.Add(_retentionDays);
         retention.Controls.Add(new Label
         {
             Text = AppLocalizer.Get("HistoryRetentionHint"),
             AutoSize = true,
             ForeColor = Color.DimGray,
-            Margin = new Padding(4, 8, 8, 0)
+            Margin = new Padding(4, 5, 4, 0)
         });
-        var saveRetention = new Button { Text = AppLocalizer.Get("Save"), AutoSize = true };
+        var saveRetention = new Button
+        {
+            Text = AppLocalizer.Get("Save"),
+            AutoSize = true,
+            MinimumSize = new Size(78, 26),
+            Margin = new Padding(4, 0, 8, 0),
+            Anchor = AnchorStyles.Left
+        };
         saveRetention.Click += SaveRetentionClicked;
         retention.Controls.Add(saveRetention);
-        retention.Controls.Add(_status);
         footer.Controls.Add(retention, 0, 0);
+        _status.Dock = DockStyle.Fill;
+        _status.AutoEllipsis = true;
+        _status.TextAlign = ContentAlignment.MiddleLeft;
+        _status.Margin = new Padding(4, 0, 8, 0);
+        footer.Controls.Add(_status, 1, 0);
+        _entryCount.Anchor = AnchorStyles.Right;
+        _entryCount.TextAlign = ContentAlignment.MiddleRight;
+        _entryCount.Margin = new Padding(8, 0, 8, 0);
+        footer.Controls.Add(_entryCount, 2, 0);
 
         var buttons = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
-            WrapContents = false
+            WrapContents = false,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Anchor = AnchorStyles.Right
         };
         var close = new Button { Text = AppLocalizer.Get("Close"), AutoSize = true, DialogResult = DialogResult.OK };
         var exportCsv = new Button { Text = AppLocalizer.Get("HistoryExportCsv"), AutoSize = true };
@@ -164,7 +235,7 @@ internal sealed class OperationHistoryForm : Form
         buttons.Controls.Add(close);
         buttons.Controls.Add(exportCsv);
         buttons.Controls.Add(exportText);
-        footer.Controls.Add(buttons, 1, 0);
+        footer.Controls.Add(buttons, 3, 0);
         root.Controls.Add(footer, 0, 3);
 
         Controls.Add(root);
@@ -206,7 +277,7 @@ internal sealed class OperationHistoryForm : Form
                 _grid.Rows[rowIndex].Tag = entry.Id;
             }
 
-            _status.Text = string.Format(AppLocalizer.Get("HistoryEntryCount"), _entries.Count);
+            _entryCount.Text = string.Format(AppLocalizer.Get("HistoryEntryCount"), _entries.Count);
         }
         catch (Exception exception)
         {
@@ -255,32 +326,67 @@ internal sealed class OperationHistoryForm : Form
 
     private async Task ExportAsync(bool csv)
     {
-        var extension = csv ? "csv" : "txt";
-        using var dialog = new SaveFileDialog
-        {
-            Title = AppLocalizer.Get(csv ? "HistoryExportCsv" : "HistoryExportText"),
-            Filter = csv ? AppLocalizer.Get("HistoryCsvFilter") : AppLocalizer.Get("HistoryTextFilter"),
-            DefaultExt = extension,
-            AddExtension = true,
-            FileName = $"LinuxUpdateManager-history-{DateTime.Now:yyyy-MM-dd}.{extension}",
-            OverwritePrompt = true
-        };
-        if (dialog.ShowDialog(this) != DialogResult.OK)
-        {
-            return;
-        }
-
         try
         {
+            var filePath = await ShowExportDialogAsync(csv);
+            if (filePath is null)
+            {
+                return;
+            }
+
             var content = csv ? BuildCsv(_entries) : BuildText(_entries);
-            await File.WriteAllTextAsync(dialog.FileName, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-            _status.Text = string.Format(AppLocalizer.Get("HistoryExportSucceeded"), dialog.FileName);
+            await File.WriteAllTextAsync(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            _status.Text = string.Format(AppLocalizer.Get("HistoryExportSucceeded"), filePath);
         }
         catch (Exception exception)
         {
             MessageBox.Show(this, exception.Message, AppLocalizer.Get("HistoryTitle"),
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private Task<string?> ShowExportDialogAsync(bool csv)
+    {
+        var completion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ownerHandle = Handle;
+        var extension = csv ? "csv" : "txt";
+        var dialogThread = new Thread(() =>
+        {
+            try
+            {
+                using var dialog = new SaveFileDialog
+                {
+                    Title = AppLocalizer.Get(csv ? "HistoryExportCsv" : "HistoryExportText"),
+                    Filter = csv ? AppLocalizer.Get("HistoryCsvFilter") : AppLocalizer.Get("HistoryTextFilter"),
+                    DefaultExt = extension,
+                    AddExtension = true,
+                    FileName = $"LinuxUpdateManager-history-{DateTime.Now:yyyy-MM-dd}.{extension}",
+                    InitialDirectory = AppContext.BaseDirectory,
+                    AutoUpgradeEnabled = true,
+                    RestoreDirectory = true,
+                    OverwritePrompt = true
+                };
+                var result = dialog.ShowDialog(new WindowHandleOwner(ownerHandle));
+                completion.TrySetResult(result == DialogResult.OK ? dialog.FileName : null);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "HistoryExportFileDialog"
+        };
+
+        dialogThread.SetApartmentState(ApartmentState.STA);
+        dialogThread.Start();
+        return completion.Task;
+    }
+
+    private sealed class WindowHandleOwner(IntPtr handle) : IWin32Window
+    {
+        public IntPtr Handle { get; } = handle;
     }
 
     private void ShowDetails(long entryId)

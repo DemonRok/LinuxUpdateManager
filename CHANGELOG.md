@@ -35,3 +35,5 @@ All notable changes to this project are documented here.
 ### Fixed
 
 - Prevented the private-key file picker from hanging by using the classic Windows dialog and a known local starting folder.
+- Prevented the operation-history TXT and CSV export dialogs from blocking the interface and opened them in the application folder.
+- Kept operation-history retention, status, count, and export controls aligned and visible within the available screen area.
