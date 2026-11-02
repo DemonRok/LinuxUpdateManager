@@ -41,10 +41,32 @@ internal sealed class BackupManagerForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(720, 500);
+        ClientSize = new Size(720, 430);
         MinimumSize = Size;
 
         BuildLayout();
+        Shown += (_, _) => FitToWorkingArea();
+    }
+
+    private void FitToWorkingArea()
+    {
+        var workingArea = Screen.FromControl(this).WorkingArea;
+        const int screenMargin = 12;
+        var maxWindowWidth = Math.Max(420, workingArea.Width - screenMargin);
+        var maxWindowHeight = Math.Max(360, workingArea.Height - screenMargin);
+        var nonClientWidth = Width - ClientSize.Width;
+        var nonClientHeight = Height - ClientSize.Height;
+
+        MinimumSize = new Size(
+            Math.Min(MinimumSize.Width, maxWindowWidth),
+            Math.Min(MinimumSize.Height, maxWindowHeight));
+
+        var clientWidth = Math.Min(ClientSize.Width, maxWindowWidth - nonClientWidth);
+        var clientHeight = Math.Min(ClientSize.Height, maxWindowHeight - nonClientHeight);
+        ClientSize = new Size(clientWidth, clientHeight);
+        Location = new Point(
+            workingArea.Left + (workingArea.Width - Width) / 2,
+            workingArea.Top + (workingArea.Height - Height) / 2);
     }
 
     private void BuildLayout()
@@ -52,17 +74,16 @@ internal sealed class BackupManagerForm : Form
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(18),
+            Padding = new Padding(12),
             ColumnCount = 1,
-            RowCount = 7
+            RowCount = 6
         };
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
 
         var title = new Label
         {
@@ -85,7 +106,8 @@ internal sealed class BackupManagerForm : Form
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false
+            WrapContents = false,
+            Margin = Padding.Empty
         };
         selectionTools.Controls.Add(new Label
         {
@@ -160,9 +182,12 @@ internal sealed class BackupManagerForm : Form
 
         var actions = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false
+            WrapContents = false,
+            Margin = Padding.Empty,
+            Anchor = AnchorStyles.Left
         };
         _export.Text = AppLocalizer.Get("BackupExport");
         _export.AutoSize = true;
@@ -172,12 +197,25 @@ internal sealed class BackupManagerForm : Form
         _import.Click += ImportClicked;
         actions.Controls.Add(_export);
         actions.Controls.Add(_import);
-        layout.Controls.Add(actions, 0, 5);
 
+        var footer = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            ColumnCount = 2,
+            RowCount = 1
+        };
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        footer.Controls.Add(actions, 0, 0);
         _status.Dock = DockStyle.Fill;
         _status.ForeColor = Color.DimGray;
         _status.TextAlign = ContentAlignment.MiddleLeft;
-        layout.Controls.Add(_status, 0, 6);
+        _status.AutoEllipsis = true;
+        _status.Margin = new Padding(12, 0, 0, 0);
+        footer.Controls.Add(_status, 1, 0);
+        layout.Controls.Add(footer, 0, 5);
         Controls.Add(layout);
     }
 
