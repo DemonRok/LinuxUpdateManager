@@ -2,11 +2,11 @@
 
 ## Overview
 
-Linux Update Manager is a Windows desktop application for managing Debian and Ubuntu servers over SSH. The project is free software under the Apache License 2.0 and is intended to remain agentless, with application data stored locally on the Windows computer.
+Linux Update Manager is a Windows desktop application for managing Linux servers over SSH. The project is free software under the Apache License 2.0 and is intended to remain agentless, with application data stored locally on the Windows computer. Update checks currently support Debian and Ubuntu through APT, and Fedora and RHEL-family distributions through DNF.
 
 ## Implemented Features
 
-The current foundation includes a Windows Forms dashboard, English and Italian runtime localization, versioned application settings, server inventory management, grouping and filtering, Windows Credential Manager integration, SSH connection checks, root privilege verification, and Debian/Ubuntu update detection.
+The current foundation includes a Windows Forms dashboard, English and Italian runtime localization, versioned application settings, server inventory management, grouping and filtering, Windows Credential Manager integration, SSH connection checks, automatic or explicitly selected privilege elevation, and APT/DNF update detection.
 
 ## Architecture
 
@@ -18,11 +18,11 @@ The current foundation includes a Windows Forms dashboard, English and Italian r
 
 The application stores `config.json` and `servers.json` under `%LOCALAPPDATA%\LinuxUpdateManager`. The server inventory is schema-versioned and stores stable IDs, display names, hosts, SSH ports and usernames, authentication and privilege choices, optional key paths, groups, notes, update preferences, and non-secret Credential Manager references. Inventory writes are atomic, duplicate endpoints are rejected, and malformed or unsupported files are preserved before an empty inventory is restored.
 
-The first-run UI language is English (`en-US`). Credentials are stored separately in Windows Credential Manager under stable per-server references. SSH passwords, sudo passwords, root passwords, and private-key passphrases are supported. No credential values are written to JSON. The first successful SSH connection asks the user to review and trust the server's SHA-256 host-key fingerprint; the accepted fingerprint is saved in the server inventory. A changed fingerprint blocks the connection and requires administrator verification. The dashboard provides SSH connection and configured root-access checks, plus Debian/Ubuntu update detection that refreshes APT indexes, reports package versions and repository-derived security status when available, and detects the reboot-required flag. Package upgrades are not implemented yet.
+The first-run UI language is English (`en-US`). Credentials are stored separately in Windows Credential Manager under stable per-server references. SSH passwords, sudo passwords, doas passwords, root passwords, and private-key passphrases are supported. No credential values are written to JSON. The first successful SSH connection asks the user to review and trust the server's SHA-256 host-key fingerprint; the accepted fingerprint is saved in the server inventory. A changed fingerprint blocks the connection and requires administrator verification. Automatic privilege elevation checks for root, passwordless sudo/doas, and saved sudo, doas, or root credentials; existing explicit per-server choices remain available. APT checks refresh package indexes, report current and candidate versions, and classify security updates when repository metadata permits. DNF checks refresh metadata and report available candidates; its security classification and current package versions may be unknown. Neither backend installs or upgrades packages.
 
 ## Security
 
-The repository uses synthetic values only. Runtime configuration, logs, backup files, build output, and common key or certificate files are excluded by `.gitignore`. Inventory entries and credentials are local to the Windows user profile. SSH host keys are pinned per server after explicit first-use confirmation. The privilege check uses the fixed read-only command `id -u`. Update detection refreshes APT package indexes and simulates an upgrade to list candidate packages; it does not install or upgrade packages.
+The repository uses synthetic values only. Runtime configuration, logs, backup files, build output, and common key or certificate files are excluded by `.gitignore`. Inventory entries and credentials are local to the Windows user profile. SSH host keys are pinned per server after explicit first-use confirmation. The privilege check uses the fixed read-only command `id -u`. Update detection refreshes APT or DNF metadata and queries candidate packages; it does not install or upgrade packages.
 
 ## Build & Release
 

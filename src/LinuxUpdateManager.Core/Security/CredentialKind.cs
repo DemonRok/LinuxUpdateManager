@@ -5,5 +5,6 @@ public enum CredentialKind
     SshPassword,
     SudoPassword,
     RootPassword,
-    PrivateKeyPassphrase
+    PrivateKeyPassphrase,
+    DoasPassword
 }

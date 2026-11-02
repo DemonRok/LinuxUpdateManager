@@ -96,7 +96,8 @@ internal sealed class ServerEditorForm : Form
             AppLocalizer.Get("DirectRoot"),
             AppLocalizer.Get("Sudo"),
             AppLocalizer.Get("SudoInteractive"),
-            AppLocalizer.Get("Su")
+            AppLocalizer.Get("Su"),
+            AppLocalizer.Get("Auto")
         ]);
 
         _authentication.SelectedIndexChanged += (_, _) => UpdatePrivateKeyAvailability();

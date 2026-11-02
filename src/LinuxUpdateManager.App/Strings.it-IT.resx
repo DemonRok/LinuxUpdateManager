@@ -52,6 +52,7 @@
   <data name="Sudo" xml:space="preserve"><value>sudo</value></data>
   <data name="SudoInteractive" xml:space="preserve"><value>sudo -i</value></data>
   <data name="Su" xml:space="preserve"><value>su -</value></data>
+  <data name="Auto" xml:space="preserve"><value>Auto (consigliato)</value></data>
   <data name="ServerGroup" xml:space="preserve"><value>Gruppo</value></data>
   <data name="Notes" xml:space="preserve"><value>Note</value></data>
   <data name="UpdatePreferences" xml:space="preserve"><value>Preferenze aggiornamenti</value></data>
@@ -65,6 +66,7 @@
   <data name="SudoPassword" xml:space="preserve"><value>Password sudo</value></data>
   <data name="RootPassword" xml:space="preserve"><value>Password root</value></data>
   <data name="PrivateKeyPassphrase" xml:space="preserve"><value>Passphrase chiave privata</value></data>
+  <data name="DoasPassword" xml:space="preserve"><value>Password doas</value></data>
   <data name="NewCredentialPlaceholder" xml:space="preserve"><value>Inserisci il nuovo valore da salvare</value></data>
   <data name="Set" xml:space="preserve"><value>Imposta</value></data>
   <data name="Remove" xml:space="preserve"><value>Rimuovi</value></data>
@@ -99,7 +101,7 @@
   <data name="HostKeySaved" xml:space="preserve"><value>Chiave host verificata e salvata.</value></data>
   <data name="Yes" xml:space="preserve"><value>Sì</value></data>
   <data name="Unknown" xml:space="preserve"><value>N/D</value></data>
-  <data name="UpdateCheckInProgress" xml:space="preserve"><value>Aggiornamento degli indici APT e verifica aggiornamenti…</value></data>
+  <data name="UpdateCheckInProgress" xml:space="preserve"><value>Aggiornamento degli indici dei pacchetti e verifica aggiornamenti…</value></data>
   <data name="UpdateCheckSucceeded" xml:space="preserve"><value>Verifica completata. Aggiornamenti disponibili per {0} pacchetti.</value></data>
   <data name="UpdateCheckFailed" xml:space="preserve"><value>Verifica aggiornamenti non riuscita.</value></data>
   <data name="StatusUpToDate" xml:space="preserve"><value>Aggiornato</value></data>

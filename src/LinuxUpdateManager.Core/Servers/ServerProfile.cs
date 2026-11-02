@@ -13,7 +13,8 @@ public enum PrivilegeElevationMethod
     DirectRoot,
     Sudo,
     SudoInteractive,
-    Su
+    Su,
+    Auto
 }
 
 public sealed class ServerUpdatePreferences
@@ -39,7 +40,7 @@ public sealed class ServerProfile
 
     public string TrustedHostKeyFingerprint { get; set; } = string.Empty;
 
-    public PrivilegeElevationMethod PrivilegeElevationMethod { get; set; } = PrivilegeElevationMethod.Sudo;
+    public PrivilegeElevationMethod PrivilegeElevationMethod { get; set; } = PrivilegeElevationMethod.Auto;
 
     public string Group { get; set; } = string.Empty;
 

@@ -52,6 +52,7 @@
   <data name="Sudo" xml:space="preserve"><value>sudo</value></data>
   <data name="SudoInteractive" xml:space="preserve"><value>sudo -i</value></data>
   <data name="Su" xml:space="preserve"><value>su -</value></data>
+  <data name="Auto" xml:space="preserve"><value>Auto (recommended)</value></data>
   <data name="ServerGroup" xml:space="preserve"><value>Group</value></data>
   <data name="Notes" xml:space="preserve"><value>Notes</value></data>
   <data name="UpdatePreferences" xml:space="preserve"><value>Update preferences</value></data>
@@ -65,6 +66,7 @@
   <data name="SudoPassword" xml:space="preserve"><value>sudo password</value></data>
   <data name="RootPassword" xml:space="preserve"><value>root password</value></data>
   <data name="PrivateKeyPassphrase" xml:space="preserve"><value>Private key passphrase</value></data>
+  <data name="DoasPassword" xml:space="preserve"><value>doas password</value></data>
   <data name="NewCredentialPlaceholder" xml:space="preserve"><value>Enter new value to store</value></data>
   <data name="Set" xml:space="preserve"><value>Set</value></data>
   <data name="Remove" xml:space="preserve"><value>Remove</value></data>
@@ -99,7 +101,7 @@
   <data name="HostKeySaved" xml:space="preserve"><value>Host key verified and saved.</value></data>
   <data name="Yes" xml:space="preserve"><value>Yes</value></data>
   <data name="Unknown" xml:space="preserve"><value>Unknown</value></data>
-  <data name="UpdateCheckInProgress" xml:space="preserve"><value>Refreshing APT indexes and checking available updates…</value></data>
+  <data name="UpdateCheckInProgress" xml:space="preserve"><value>Refreshing package indexes and checking available updates…</value></data>
   <data name="UpdateCheckSucceeded" xml:space="preserve"><value>Update check complete. {0} package update(s) available.</value></data>
   <data name="UpdateCheckFailed" xml:space="preserve"><value>Update check failed.</value></data>
   <data name="StatusUpToDate" xml:space="preserve"><value>Up to date</value></data>

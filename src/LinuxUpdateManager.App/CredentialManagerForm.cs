@@ -20,7 +20,7 @@ internal sealed class CredentialManagerForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(700, 330);
+        ClientSize = new Size(700, 380);
         MinimumSize = Size;
         BuildLayout(serverName);
         RefreshStates();
@@ -46,7 +46,7 @@ internal sealed class CredentialManagerForm : Form
             Font = new Font(Font, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleLeft
         };
-        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 4 };
+        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5 };
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
@@ -56,6 +56,7 @@ internal sealed class CredentialManagerForm : Form
         AddCredentialRow(grid, 1, CredentialKind.SudoPassword, "SudoPassword");
         AddCredentialRow(grid, 2, CredentialKind.RootPassword, "RootPassword");
         AddCredentialRow(grid, 3, CredentialKind.PrivateKeyPassphrase, "PrivateKeyPassphrase");
+        AddCredentialRow(grid, 4, CredentialKind.DoasPassword, "DoasPassword");
 
         var close = new Button
         {
@@ -80,7 +81,14 @@ internal sealed class CredentialManagerForm : Form
 
     private void AddCredentialRow(TableLayoutPanel grid, int row, CredentialKind kind, string labelKey)
     {
-        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+        if (grid.RowStyles.Count <= row)
+        {
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+        }
+        else
+        {
+            grid.RowStyles[row] = new RowStyle(SizeType.Absolute, 50);
+        }
         var label = new Label
         {
             Text = AppLocalizer.Get(labelKey),

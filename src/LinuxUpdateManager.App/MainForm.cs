@@ -50,7 +50,7 @@ internal sealed class MainForm : Form
         _updateDetectionService = new UpdateDetectionService(_privilegeElevationService);
         _inventory = inventory;
 
-        Text = AppLocalizer.Get("AppTitle");
+        Text = WindowTitle();
         Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath)
             ?? System.Drawing.SystemIcons.Application;
         MinimumSize = new Size(800, 520);
@@ -181,7 +181,7 @@ internal sealed class MainForm : Form
 
     private void ApplyLanguage()
     {
-        Text = AppLocalizer.Get("AppTitle");
+        Text = WindowTitle();
         _title.Text = AppLocalizer.Get("DashboardTitle");
         _notice.Text = AppLocalizer.Get("DemoNotice");
         _languageLabel.Text = AppLocalizer.Get("LanguageLabel");
@@ -220,6 +220,12 @@ internal sealed class MainForm : Form
         RefreshGroupFilter();
         ApplyFilters();
         UpdateCommandButtons();
+    }
+
+    private static string WindowTitle()
+    {
+        var version = typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+        return $"{AppLocalizer.Get("AppTitle")} {version}";
     }
 
     private void AddColumn(string name, string resourceKey) =>

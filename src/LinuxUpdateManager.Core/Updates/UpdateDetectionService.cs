@@ -3,12 +3,23 @@ using LinuxUpdateManager.Core.Servers;
 
 namespace LinuxUpdateManager.Core.Updates;
 
-public sealed class UpdateDetectionService(PrivilegeElevationService privilegeElevationService)
+public sealed class UpdateDetectionService
 {
-    private static readonly TimeSpan AptTimeout = TimeSpan.FromMinutes(5);
-    private static readonly Regex PackageLine = new(
+    private static readonly Regex AptPackageLine = new(
         "^Inst\\s+(?<name>\\S+)(?:\\s+\\[(?<current>[^\\]]*)\\])?\\s+\\((?<candidate>\\S+)(?:\\s+(?<repository>[^)]*))?\\)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
+
+    private readonly IReadOnlyList<IUpdateProvider> _providers;
+
+    public UpdateDetectionService(PrivilegeElevationService privilegeElevationService)
+    {
+        ArgumentNullException.ThrowIfNull(privilegeElevationService);
+        _providers =
+        [
+            new AptUpdateProvider(privilegeElevationService),
+            new DnfUpdateProvider(privilegeElevationService)
+        ];
+    }
 
     public async Task<UpdateCheckResult> CheckAsync(
         SshConnectionSession session,
@@ -18,36 +29,20 @@ public sealed class UpdateDetectionService(PrivilegeElevationService privilegeEl
         var osReleaseResult = await session.ExecuteAsync("cat /etc/os-release", cancellationToken: cancellationToken);
         EnsureSuccess(osReleaseResult, "Could not read /etc/os-release.");
         var release = ParseOsRelease(osReleaseResult.Output);
-        EnsureSupportedDistribution(release);
+        var provider = _providers.FirstOrDefault(candidate => candidate.CanHandle(release));
+        if (provider is null)
+        {
+            var name = release.GetValueOrDefault("PRETTY_NAME", release.GetValueOrDefault("NAME", "Linux"));
+            throw new NotSupportedException($"Update checks are not supported for {name} yet.");
+        }
 
-        var refreshResult = await privilegeElevationService.ExecuteAsRootAsync(
-            session, server, "LC_ALL=C apt-get update -qq", cancellationToken, AptTimeout);
-        EnsureSuccess(refreshResult, "APT package indexes could not be refreshed.");
-
-        var simulation = await session.ExecuteAsync(
-            "LC_ALL=C apt-get -s -o Debug::NoLocking=1 upgrade",
-            cancellationToken: cancellationToken,
-            commandTimeout: AptTimeout);
-        EnsureSuccess(simulation, "APT could not determine available package updates.");
-        var packages = ParsePackageUpdates(simulation.Output);
-
-        var rebootCheck = await session.ExecuteAsync(
-            "if test -f /var/run/reboot-required; then printf yes; else printf no; fi",
-            cancellationToken: cancellationToken);
-        EnsureSuccess(rebootCheck, "Could not determine whether the server requires a reboot.");
-        var rebootRequired = rebootCheck.Output.Trim().Equals("yes", StringComparison.OrdinalIgnoreCase);
-        int? securityCount = packages.Count == 0
-            ? 0
-            : packages.All(package => package.IsSecurityUpdate.HasValue)
-                ? packages.Count(package => package.IsSecurityUpdate == true)
-                : null;
-
+        var check = await provider.CheckAsync(session, server, cancellationToken);
         return new UpdateCheckResult(
             release.GetValueOrDefault("PRETTY_NAME", release.GetValueOrDefault("NAME", "Linux")),
             release.GetValueOrDefault("VERSION_ID", string.Empty),
-            packages,
-            securityCount,
-            rebootRequired,
+            check.Packages,
+            check.SecurityUpdateCount,
+            check.RebootRequired,
             DateTimeOffset.Now);
     }
 
@@ -77,7 +72,7 @@ public sealed class UpdateDetectionService(PrivilegeElevationService privilegeEl
     public static IReadOnlyList<PackageUpdate> ParsePackageUpdates(string output)
     {
         var packages = new List<PackageUpdate>();
-        foreach (Match match in PackageLine.Matches(output))
+        foreach (Match match in AptPackageLine.Matches(output))
         {
             var repository = match.Groups["repository"].Success
                 ? match.Groups["repository"].Value.Trim()
@@ -97,15 +92,37 @@ public sealed class UpdateDetectionService(PrivilegeElevationService privilegeEl
         return packages;
     }
 
-    private static void EnsureSupportedDistribution(IReadOnlyDictionary<string, string> release)
+    internal static bool IsDnfDistribution(IReadOnlyDictionary<string, string> release)
     {
         var ids = release.GetValueOrDefault("ID", string.Empty) + " " +
                   release.GetValueOrDefault("ID_LIKE", string.Empty);
-        if (!ids.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-                .Any(id => id.Equals("debian", StringComparison.OrdinalIgnoreCase) ||
-                           id.Equals("ubuntu", StringComparison.OrdinalIgnoreCase)))
+        return ids.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .Any(id => id.Equals("fedora", StringComparison.OrdinalIgnoreCase) ||
+                       id.Equals("rhel", StringComparison.OrdinalIgnoreCase) ||
+                       id.Equals("centos", StringComparison.OrdinalIgnoreCase) ||
+                       id.Equals("rocky", StringComparison.OrdinalIgnoreCase) ||
+                       id.Equals("almalinux", StringComparison.OrdinalIgnoreCase) ||
+                       id.Equals("ol", StringComparison.OrdinalIgnoreCase) ||
+                       id.Equals("amzn", StringComparison.OrdinalIgnoreCase));
+    }
+
+    internal static bool IsAptDistribution(IReadOnlyDictionary<string, string> release)
+    {
+        var ids = release.GetValueOrDefault("ID", string.Empty) + " " +
+                  release.GetValueOrDefault("ID_LIKE", string.Empty);
+        return ids.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .Any(id => id.Equals("debian", StringComparison.OrdinalIgnoreCase) ||
+                       id.Equals("ubuntu", StringComparison.OrdinalIgnoreCase));
+    }
+
+    internal static void EnsureSuccess(SshCommandResult result, string message)
+    {
+        if (result.ExitStatus != 0)
         {
-            throw new NotSupportedException("Only Debian and Ubuntu Linux servers are supported for APT update checks.");
+            var detail = string.IsNullOrWhiteSpace(result.Error) ? result.Output : result.Error;
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(detail)
+                ? message
+                : $"{message}{Environment.NewLine}{detail.Trim()}");
         }
     }
 
@@ -120,16 +137,5 @@ public sealed class UpdateDetectionService(PrivilegeElevationService privilegeEl
             .Replace("\\\\", "\\", StringComparison.Ordinal)
             .Replace("\\$", "$", StringComparison.Ordinal)
             .Replace("\\`", "`", StringComparison.Ordinal);
-    }
-
-    private static void EnsureSuccess(SshCommandResult result, string message)
-    {
-        if (result.ExitStatus != 0)
-        {
-            var detail = string.IsNullOrWhiteSpace(result.Error) ? result.Output : result.Error;
-            throw new InvalidOperationException(string.IsNullOrWhiteSpace(detail)
-                ? message
-                : $"{message}{Environment.NewLine}{detail.Trim()}");
-        }
     }
 }
