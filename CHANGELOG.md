@@ -24,3 +24,7 @@ All notable changes to this project are documented here.
 
 - Dashboard window sizing adapts to localized column content and available screen space.
 - Replaced synthetic dashboard rows with the local server inventory.
+
+### Fixed
+
+- Prevented the private-key file picker from hanging by using the classic Windows dialog and a known local starting folder.

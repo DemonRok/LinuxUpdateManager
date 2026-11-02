@@ -175,25 +175,48 @@ internal sealed class ServerEditorForm : Form
 
     private void BrowsePrivateKeyClicked(object? sender, EventArgs e)
     {
-        using var dialog = new OpenFileDialog
+        try
         {
-            Title = AppLocalizer.Get("SelectPrivateKey"),
-            Filter = AppLocalizer.Get("PrivateKeyFileFilter"),
-            CheckFileExists = true,
-            CheckPathExists = true,
-            Multiselect = false,
-            FileName = Path.GetFileName(_privateKeyPath.Text)
-        };
+            using var dialog = new OpenFileDialog
+            {
+                Title = AppLocalizer.Get("SelectPrivateKey"),
+                Filter = AppLocalizer.Get("PrivateKeyFileFilter"),
+                CheckFileExists = true,
+                CheckPathExists = true,
+                Multiselect = false,
+                AutoUpgradeEnabled = false,
+                RestoreDirectory = true
+            };
 
-        var currentDirectory = Path.GetDirectoryName(_privateKeyPath.Text);
-        if (!string.IsNullOrWhiteSpace(currentDirectory) && Directory.Exists(currentDirectory))
-        {
-            dialog.InitialDirectory = currentDirectory;
+            if (!string.IsNullOrWhiteSpace(_privateKeyPath.Text))
+            {
+                dialog.FileName = Path.GetFileName(_privateKeyPath.Text);
+            }
+
+            var currentDirectory = Path.GetDirectoryName(_privateKeyPath.Text);
+            if (string.IsNullOrWhiteSpace(currentDirectory) || !Directory.Exists(currentDirectory))
+            {
+                currentDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            }
+
+            if (Directory.Exists(currentDirectory))
+            {
+                dialog.InitialDirectory = currentDirectory;
+            }
+
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                _privateKeyPath.Text = dialog.FileName;
+            }
         }
-
-        if (dialog.ShowDialog(this) == DialogResult.OK)
+        catch (Exception exception)
         {
-            _privateKeyPath.Text = dialog.FileName;
+            MessageBox.Show(
+                this,
+                $"{AppLocalizer.Get("PrivateKeyDialogFailed")}{Environment.NewLine}{exception.Message}",
+                AppLocalizer.Get("AppTitle"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
         }
     }
 

@@ -47,6 +47,7 @@
   <data name="Browse" xml:space="preserve"><value>Sfoglia…</value></data>
   <data name="SelectPrivateKey" xml:space="preserve"><value>Seleziona la chiave privata</value></data>
   <data name="PrivateKeyFileFilter" xml:space="preserve"><value>File di chiave privata|id_*;*.pem;*.key;*.ppk|Tutti i file|*.*</value></data>
+  <data name="PrivateKeyDialogFailed" xml:space="preserve"><value>Windows non è riuscito ad aprire la finestra per selezionare la chiave privata.</value></data>
   <data name="PrivilegeMethod" xml:space="preserve"><value>Elevazione privilegi</value></data>
   <data name="DirectRoot" xml:space="preserve"><value>Accesso root diretto</value></data>
   <data name="Sudo" xml:space="preserve"><value>sudo</value></data>
