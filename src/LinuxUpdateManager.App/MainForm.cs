@@ -20,7 +20,9 @@ internal sealed class MainForm : Form
         _configurationService = configurationService;
 
         Text = AppLocalizer.Get("AppTitle");
-        MinimumSize = new Size(1000, 560);
+        Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath)
+            ?? System.Drawing.SystemIcons.Application;
+        MinimumSize = new Size(800, 520);
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 9F);
         BuildLayout();
@@ -76,7 +78,7 @@ internal sealed class MainForm : Form
         _servers.AllowUserToAddRows = false;
         _servers.AllowUserToDeleteRows = false;
         _servers.AllowUserToResizeRows = false;
-        _servers.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+        _servers.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
         _servers.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         _servers.RowHeadersVisible = false;
         _servers.BackgroundColor = SystemColors.Window;
@@ -118,7 +120,6 @@ internal sealed class MainForm : Form
         AddColumn("Reboot", "ColumnReboot");
         AddColumn("Checked", "ColumnChecked");
         AddColumn("Operation", "ColumnOperation");
-        _servers.Columns["Operation"]!.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
         _servers.Rows.Clear();
         _servers.Rows.Add(AppLocalizer.Get("ServerAlpha"), "server.example.com", "Ubuntu", "24.04 LTS",
             AppLocalizer.Get("StatusNotConnected"), "—", "—", AppLocalizer.Get("No"),
@@ -126,6 +127,42 @@ internal sealed class MainForm : Form
         _servers.Rows.Add(AppLocalizer.Get("ServerBeta"), "192.0.2.10", "Debian", "13",
             AppLocalizer.Get("StatusNotConnected"), "—", "—", AppLocalizer.Get("No"),
             AppLocalizer.Get("StatusNotChecked"), AppLocalizer.Get("StatusIdle"));
+
+        ResizeWindowForLocalizedContent();
+    }
+
+    private void ResizeWindowForLocalizedContent()
+    {
+        _servers.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.AllCells);
+
+        var gridWidth = _servers.Columns.Cast<DataGridViewColumn>().Sum(column => column.Width);
+        var contentPanel = (TableLayoutPanel)_servers.Parent!;
+        var desiredClientWidth = gridWidth + contentPanel.Padding.Horizontal;
+        var workingArea = Screen.FromControl(this).WorkingArea;
+        var maximumOuterWidth = Math.Max(400, workingArea.Width - 32);
+        var maximumOuterHeight = Math.Max(360, workingArea.Height - 32);
+        var horizontalChrome = Width - ClientSize.Width;
+        var minimumOuterWidth = Math.Min(800, maximumOuterWidth);
+        var minimumOuterHeight = Math.Min(520, maximumOuterHeight);
+        var maximumClientWidth = Math.Max(300, maximumOuterWidth - horizontalChrome);
+        var minimumClientWidth = Math.Max(300, minimumOuterWidth - horizontalChrome);
+
+        MinimumSize = new Size(minimumOuterWidth, minimumOuterHeight);
+        _servers.Columns["Operation"]!.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+
+        if (WindowState != FormWindowState.Normal)
+        {
+            return;
+        }
+
+        var previousCenter = Left + Width / 2;
+        var targetClientWidth = Math.Clamp(desiredClientWidth, minimumClientWidth, maximumClientWidth);
+        ClientSize = new Size(targetClientWidth, ClientSize.Height);
+
+        if (Visible)
+        {
+            Left = Math.Clamp(previousCenter - Width / 2, workingArea.Left, workingArea.Right - Width);
+        }
     }
 
     private void AddColumn(string name, string resourceKey) =>
