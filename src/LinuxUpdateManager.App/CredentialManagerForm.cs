@@ -14,13 +14,13 @@ internal sealed class CredentialManagerForm : Form
         _serverId = serverId;
         _credentialService = credentialService;
         Text = AppLocalizer.Get("ManageCredentialsTitle");
-        Icon = System.Drawing.SystemIcons.Application;
+        Icon = AppIcon.Create();
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(700, 380);
+        ClientSize = new Size(700, 312);
         MinimumSize = Size;
         BuildLayout(serverName);
         RefreshStates();
@@ -46,11 +46,18 @@ internal sealed class CredentialManagerForm : Form
             Font = new Font(Font, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleLeft
         };
-        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5 };
-        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175));
+        var grid = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Margin = Padding.Empty,
+            ColumnCount = 5,
+            RowCount = 5
+        };
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
-        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 75));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82));
 
         AddCredentialRow(grid, 0, CredentialKind.SshPassword, "SshPassword");
         AddCredentialRow(grid, 1, CredentialKind.SudoPassword, "SudoPassword");
@@ -81,14 +88,7 @@ internal sealed class CredentialManagerForm : Form
 
     private void AddCredentialRow(TableLayoutPanel grid, int row, CredentialKind kind, string labelKey)
     {
-        if (grid.RowStyles.Count <= row)
-        {
-            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
-        }
-        else
-        {
-            grid.RowStyles[row] = new RowStyle(SizeType.Absolute, 50);
-        }
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         var label = new Label
         {
             Text = AppLocalizer.Get(labelKey),
@@ -98,9 +98,10 @@ internal sealed class CredentialManagerForm : Form
         };
         var input = new TextBox
         {
-            Dock = DockStyle.Fill,
+            Anchor = AnchorStyles.Left | AnchorStyles.Right,
             UseSystemPasswordChar = true,
-            PlaceholderText = AppLocalizer.Get("NewCredentialPlaceholder")
+            PlaceholderText = AppLocalizer.Get("NewCredentialPlaceholder"),
+            Margin = new Padding(3, 0, 3, 0)
         };
         var state = new Label
         {
@@ -108,23 +109,30 @@ internal sealed class CredentialManagerForm : Form
             TextAlign = ContentAlignment.MiddleCenter,
             AutoSize = true
         };
-        var actions = new FlowLayoutPanel
+        var save = new Button
         {
-            Dock = DockStyle.Fill,
-            WrapContents = false,
-            FlowDirection = FlowDirection.LeftToRight
+            Text = AppLocalizer.Get("Set"),
+            AutoSize = true,
+            Anchor = AnchorStyles.None,
+            Margin = Padding.Empty,
+            Tag = kind
         };
-        var save = new Button { Text = AppLocalizer.Get("Set"), AutoSize = true, Tag = kind };
-        var remove = new Button { Text = AppLocalizer.Get("Remove"), AutoSize = true, Tag = kind };
+        var remove = new Button
+        {
+            Text = AppLocalizer.Get("Remove"),
+            AutoSize = true,
+            Anchor = AnchorStyles.None,
+            Margin = Padding.Empty,
+            Tag = kind
+        };
         save.Click += SaveCredentialClicked;
         remove.Click += RemoveCredentialClicked;
-        actions.Controls.Add(save);
-        actions.Controls.Add(remove);
 
         grid.Controls.Add(label, 0, row);
         grid.Controls.Add(input, 1, row);
         grid.Controls.Add(state, 2, row);
-        grid.Controls.Add(actions, 3, row);
+        grid.Controls.Add(save, 3, row);
+        grid.Controls.Add(remove, 4, row);
         _rows.Add(kind, (input, state, remove));
     }
 

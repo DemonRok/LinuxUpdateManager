@@ -51,8 +51,7 @@ internal sealed class MainForm : Form
         _inventory = inventory;
 
         Text = WindowTitle();
-        Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath)
-            ?? System.Drawing.SystemIcons.Application;
+        Icon = AppIcon.Create();
         MinimumSize = new Size(800, 520);
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 9F);

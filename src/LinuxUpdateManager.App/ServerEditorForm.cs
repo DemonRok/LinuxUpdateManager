@@ -33,8 +33,7 @@ internal sealed class ServerEditorForm : Form
     {
         _profile = profile is null ? new ServerProfile() : Copy(profile);
         Text = AppLocalizer.Get("ServerDetails");
-        Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath)
-            ?? System.Drawing.SystemIcons.Application;
+        Icon = AppIcon.Create();
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -173,40 +172,19 @@ internal sealed class ServerEditorForm : Form
         _privateKeyLabel.Enabled = enabled;
     }
 
-    private void BrowsePrivateKeyClicked(object? sender, EventArgs e)
+    private async void BrowsePrivateKeyClicked(object? sender, EventArgs e)
     {
+        _browsePrivateKey.Enabled = false;
         try
         {
-            using var dialog = new OpenFileDialog
+            var selectedPath = await ShowPrivateKeyDialogAsync(
+                _privateKeyPath.Text,
+                Handle,
+                AppLocalizer.Get("SelectPrivateKey"),
+                AppLocalizer.Get("PrivateKeyFileFilter"));
+            if (selectedPath is not null)
             {
-                Title = AppLocalizer.Get("SelectPrivateKey"),
-                Filter = AppLocalizer.Get("PrivateKeyFileFilter"),
-                CheckFileExists = true,
-                CheckPathExists = true,
-                Multiselect = false,
-                AutoUpgradeEnabled = false,
-                RestoreDirectory = true
-            };
-
-            if (!string.IsNullOrWhiteSpace(_privateKeyPath.Text))
-            {
-                dialog.FileName = Path.GetFileName(_privateKeyPath.Text);
-            }
-
-            var currentDirectory = Path.GetDirectoryName(_privateKeyPath.Text);
-            if (string.IsNullOrWhiteSpace(currentDirectory) || !Directory.Exists(currentDirectory))
-            {
-                currentDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            }
-
-            if (Directory.Exists(currentDirectory))
-            {
-                dialog.InitialDirectory = currentDirectory;
-            }
-
-            if (dialog.ShowDialog(this) == DialogResult.OK)
-            {
-                _privateKeyPath.Text = dialog.FileName;
+                _privateKeyPath.Text = selectedPath;
             }
         }
         catch (Exception exception)
@@ -218,6 +196,67 @@ internal sealed class ServerEditorForm : Form
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
         }
+        finally
+        {
+            UpdatePrivateKeyAvailability();
+        }
+    }
+
+    private static Task<string?> ShowPrivateKeyDialogAsync(
+        string currentPath,
+        IntPtr ownerHandle,
+        string title,
+        string filter)
+    {
+        var completion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dialogThread = new Thread(() =>
+        {
+            try
+            {
+                using var dialog = new OpenFileDialog
+                {
+                    Title = title,
+                    Filter = filter,
+                    CheckFileExists = true,
+                    CheckPathExists = true,
+                    Multiselect = false,
+                    AutoUpgradeEnabled = true,
+                    RestoreDirectory = true
+                };
+
+                if (!string.IsNullOrWhiteSpace(currentPath))
+                {
+                    dialog.FileName = Path.GetFileName(currentPath);
+                }
+
+                var initialDirectory = Path.GetDirectoryName(currentPath);
+                if (string.IsNullOrWhiteSpace(initialDirectory))
+                {
+                    initialDirectory = Application.StartupPath;
+                }
+
+                dialog.InitialDirectory = initialDirectory;
+                var result = dialog.ShowDialog(new WindowHandleOwner(ownerHandle));
+                completion.TrySetResult(result == DialogResult.OK ? dialog.FileName : null);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "PrivateKeyFileDialog"
+        };
+
+        dialogThread.SetApartmentState(ApartmentState.STA);
+        dialogThread.Start();
+        return completion.Task;
+    }
+
+    private sealed class WindowHandleOwner(IntPtr handle) : IWin32Window
+    {
+        public IntPtr Handle { get; } = handle;
     }
 
     private void SaveClicked(object? sender, EventArgs e)

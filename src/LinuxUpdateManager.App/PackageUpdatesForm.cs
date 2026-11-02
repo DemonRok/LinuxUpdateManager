@@ -8,7 +8,7 @@ internal sealed class PackageUpdatesForm : Form
     public PackageUpdatesForm(string serverName, UpdateCheckResult result)
     {
         Text = string.Format(AppLocalizer.Get("PackageDetailsTitle"), serverName);
-        Icon = System.Drawing.SystemIcons.Application;
+        Icon = AppIcon.Create();
         StartPosition = FormStartPosition.CenterParent;
         MinimumSize = new Size(650, 360);
         ClientSize = new Size(850, 500);
