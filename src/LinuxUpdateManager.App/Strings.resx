@@ -6,7 +6,7 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="AppTitle" xml:space="preserve"><value>Linux Update Manager</value></data>
   <data name="DashboardTitle" xml:space="preserve"><value>Server Dashboard</value></data>
-  <data name="DemoNotice" xml:space="preserve"><value>Demonstration data only. No server connections are performed in this phase.</value></data>
+  <data name="DemoNotice" xml:space="preserve"><value>Server inventory is stored locally. SSH operations are not available yet.</value></data>
   <data name="LanguageLabel" xml:space="preserve"><value>Language</value></data>
   <data name="ColumnName" xml:space="preserve"><value>Server</value></data>
   <data name="ColumnHost" xml:space="preserve"><value>Hostname or IP</value></data>
@@ -18,15 +18,63 @@
   <data name="ColumnReboot" xml:space="preserve"><value>Reboot required</value></data>
   <data name="ColumnChecked" xml:space="preserve"><value>Last update check</value></data>
   <data name="ColumnOperation" xml:space="preserve"><value>Operation status</value></data>
-  <data name="StatusDemo" xml:space="preserve"><value>Ready · sample data</value></data>
   <data name="StatusNotConnected" xml:space="preserve"><value>Not connected</value></data>
   <data name="StatusNotChecked" xml:space="preserve"><value>Not checked</value></data>
   <data name="StatusIdle" xml:space="preserve"><value>Idle</value></data>
   <data name="No" xml:space="preserve"><value>No</value></data>
-  <data name="ServerAlpha" xml:space="preserve"><value>Example server</value></data>
-  <data name="ServerBeta" xml:space="preserve"><value>Test server</value></data>
   <data name="ConfigSaveFailed" xml:space="preserve"><value>Configuration could not be saved</value></data>
   <data name="CheckForUpdates" xml:space="preserve"><value>Check for Updates</value></data>
   <data name="UpdateNow" xml:space="preserve"><value>Update Now</value></data>
   <data name="Later" xml:space="preserve"><value>Later</value></data>
+  <data name="ColumnGroup" xml:space="preserve"><value>Group</value></data>
+  <data name="AddServer" xml:space="preserve"><value>Add Server</value></data>
+  <data name="EditServer" xml:space="preserve"><value>Edit Server</value></data>
+  <data name="RemoveServer" xml:space="preserve"><value>Remove Server</value></data>
+  <data name="ManageCredentials" xml:space="preserve"><value>Credentials</value></data>
+  <data name="NoServers" xml:space="preserve"><value>No servers configured. Add a server to begin.</value></data>
+  <data name="SearchServers" xml:space="preserve"><value>Search servers</value></data>
+  <data name="AllGroups" xml:space="preserve"><value>All groups</value></data>
+  <data name="SelectServer" xml:space="preserve"><value>Select a server first.</value></data>
+  <data name="ConfirmRemoveServer" xml:space="preserve"><value>Remove the selected server and its stored credentials?</value></data>
+  <data name="ServerDetails" xml:space="preserve"><value>Server Details</value></data>
+  <data name="ServerName" xml:space="preserve"><value>Server name</value></data>
+  <data name="HostnameOrIp" xml:space="preserve"><value>Hostname or IP</value></data>
+  <data name="SshPort" xml:space="preserve"><value>SSH port</value></data>
+  <data name="Username" xml:space="preserve"><value>SSH username</value></data>
+  <data name="Authentication" xml:space="preserve"><value>Authentication</value></data>
+  <data name="Password" xml:space="preserve"><value>Password</value></data>
+  <data name="PrivateKey" xml:space="preserve"><value>Private key</value></data>
+  <data name="PrivateKeyPath" xml:space="preserve"><value>Private key path</value></data>
+  <data name="PrivilegeMethod" xml:space="preserve"><value>Privilege elevation</value></data>
+  <data name="DirectRoot" xml:space="preserve"><value>Direct root login</value></data>
+  <data name="Sudo" xml:space="preserve"><value>sudo</value></data>
+  <data name="SudoInteractive" xml:space="preserve"><value>sudo -i</value></data>
+  <data name="Su" xml:space="preserve"><value>su -</value></data>
+  <data name="ServerGroup" xml:space="preserve"><value>Group</value></data>
+  <data name="Notes" xml:space="preserve"><value>Notes</value></data>
+  <data name="UpdatePreferences" xml:space="preserve"><value>Update preferences</value></data>
+  <data name="CheckForUpdatesPreference" xml:space="preserve"><value>Include this server in update checks</value></data>
+  <data name="Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Close" xml:space="preserve"><value>Close</value></data>
+  <data name="InvalidServerDetails" xml:space="preserve"><value>Check the server name, hostname, port, and username.</value></data>
+  <data name="ManageCredentialsTitle" xml:space="preserve"><value>Manage Credentials</value></data>
+  <data name="SshPassword" xml:space="preserve"><value>SSH password</value></data>
+  <data name="SudoPassword" xml:space="preserve"><value>sudo password</value></data>
+  <data name="RootPassword" xml:space="preserve"><value>root password</value></data>
+  <data name="PrivateKeyPassphrase" xml:space="preserve"><value>Private key passphrase</value></data>
+  <data name="NewCredentialPlaceholder" xml:space="preserve"><value>Enter new value to store</value></data>
+  <data name="Set" xml:space="preserve"><value>Set</value></data>
+  <data name="Remove" xml:space="preserve"><value>Remove</value></data>
+  <data name="CredentialStored" xml:space="preserve"><value>Stored</value></data>
+  <data name="CredentialMissing" xml:space="preserve"><value>Not set</value></data>
+  <data name="CredentialUnavailable" xml:space="preserve"><value>Unavailable</value></data>
+  <data name="CredentialValueRequired" xml:space="preserve"><value>Enter a value to store.</value></data>
+  <data name="ConfirmRemoveCredential" xml:space="preserve"><value>Remove this credential from Windows Credential Manager?</value></data>
+  <data name="CredentialOperationFailed" xml:space="preserve"><value>Windows Credential Manager could not complete the operation.</value></data>
+  <data name="InventorySaveFailed" xml:space="preserve"><value>Could not save the server inventory.</value></data>
+  <data name="ServerRemoved" xml:space="preserve"><value>Server removed.</value></data>
+  <data name="CredentialCleanupFailed" xml:space="preserve"><value>The server was removed, but one or more stored credentials could not be deleted.</value></data>
+  <data name="StatusInventoryReady" xml:space="preserve"><value>Server inventory ready</value></data>
+  <data name="ServerSaved" xml:space="preserve"><value>Server saved.</value></data>
 </root>

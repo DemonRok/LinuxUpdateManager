@@ -6,7 +6,7 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="AppTitle" xml:space="preserve"><value>Linux Update Manager</value></data>
   <data name="DashboardTitle" xml:space="preserve"><value>Dashboard dei server</value></data>
-  <data name="DemoNotice" xml:space="preserve"><value>Solo dati dimostrativi. In questa fase non vengono effettuate connessioni ai server.</value></data>
+  <data name="DemoNotice" xml:space="preserve"><value>L'inventario server è salvato in locale. Le operazioni SSH non sono ancora disponibili.</value></data>
   <data name="LanguageLabel" xml:space="preserve"><value>Lingua</value></data>
   <data name="ColumnName" xml:space="preserve"><value>Server</value></data>
   <data name="ColumnHost" xml:space="preserve"><value>Hostname o IP</value></data>
@@ -18,15 +18,63 @@
   <data name="ColumnReboot" xml:space="preserve"><value>Riavvio richiesto</value></data>
   <data name="ColumnChecked" xml:space="preserve"><value>Ultima verifica aggiornamenti</value></data>
   <data name="ColumnOperation" xml:space="preserve"><value>Stato operazione</value></data>
-  <data name="StatusDemo" xml:space="preserve"><value>Pronto · dati di esempio</value></data>
   <data name="StatusNotConnected" xml:space="preserve"><value>Non connesso</value></data>
   <data name="StatusNotChecked" xml:space="preserve"><value>Non verificato</value></data>
   <data name="StatusIdle" xml:space="preserve"><value>Inattivo</value></data>
   <data name="No" xml:space="preserve"><value>No</value></data>
-  <data name="ServerAlpha" xml:space="preserve"><value>Server di esempio</value></data>
-  <data name="ServerBeta" xml:space="preserve"><value>Server di test</value></data>
   <data name="ConfigSaveFailed" xml:space="preserve"><value>Impossibile salvare la configurazione</value></data>
   <data name="CheckForUpdates" xml:space="preserve"><value>Verifica aggiornamenti</value></data>
   <data name="UpdateNow" xml:space="preserve"><value>Aggiorna ora</value></data>
   <data name="Later" xml:space="preserve"><value>Più tardi</value></data>
+  <data name="ColumnGroup" xml:space="preserve"><value>Gruppo</value></data>
+  <data name="AddServer" xml:space="preserve"><value>Aggiungi server</value></data>
+  <data name="EditServer" xml:space="preserve"><value>Modifica server</value></data>
+  <data name="RemoveServer" xml:space="preserve"><value>Rimuovi server</value></data>
+  <data name="ManageCredentials" xml:space="preserve"><value>Credenziali</value></data>
+  <data name="NoServers" xml:space="preserve"><value>Nessun server configurato. Aggiungi un server per iniziare.</value></data>
+  <data name="SearchServers" xml:space="preserve"><value>Cerca server</value></data>
+  <data name="AllGroups" xml:space="preserve"><value>Tutti i gruppi</value></data>
+  <data name="SelectServer" xml:space="preserve"><value>Seleziona prima un server.</value></data>
+  <data name="ConfirmRemoveServer" xml:space="preserve"><value>Rimuovere il server selezionato e le credenziali associate?</value></data>
+  <data name="ServerDetails" xml:space="preserve"><value>Dettagli server</value></data>
+  <data name="ServerName" xml:space="preserve"><value>Nome server</value></data>
+  <data name="HostnameOrIp" xml:space="preserve"><value>Hostname o IP</value></data>
+  <data name="SshPort" xml:space="preserve"><value>Porta SSH</value></data>
+  <data name="Username" xml:space="preserve"><value>Nome utente SSH</value></data>
+  <data name="Authentication" xml:space="preserve"><value>Autenticazione</value></data>
+  <data name="Password" xml:space="preserve"><value>Password</value></data>
+  <data name="PrivateKey" xml:space="preserve"><value>Chiave privata</value></data>
+  <data name="PrivateKeyPath" xml:space="preserve"><value>Percorso chiave privata</value></data>
+  <data name="PrivilegeMethod" xml:space="preserve"><value>Elevazione privilegi</value></data>
+  <data name="DirectRoot" xml:space="preserve"><value>Accesso root diretto</value></data>
+  <data name="Sudo" xml:space="preserve"><value>sudo</value></data>
+  <data name="SudoInteractive" xml:space="preserve"><value>sudo -i</value></data>
+  <data name="Su" xml:space="preserve"><value>su -</value></data>
+  <data name="ServerGroup" xml:space="preserve"><value>Gruppo</value></data>
+  <data name="Notes" xml:space="preserve"><value>Note</value></data>
+  <data name="UpdatePreferences" xml:space="preserve"><value>Preferenze aggiornamenti</value></data>
+  <data name="CheckForUpdatesPreference" xml:space="preserve"><value>Includi questo server nelle verifiche aggiornamenti</value></data>
+  <data name="Save" xml:space="preserve"><value>Salva</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Annulla</value></data>
+  <data name="Close" xml:space="preserve"><value>Chiudi</value></data>
+  <data name="InvalidServerDetails" xml:space="preserve"><value>Controlla nome server, hostname, porta e nome utente.</value></data>
+  <data name="ManageCredentialsTitle" xml:space="preserve"><value>Gestione credenziali</value></data>
+  <data name="SshPassword" xml:space="preserve"><value>Password SSH</value></data>
+  <data name="SudoPassword" xml:space="preserve"><value>Password sudo</value></data>
+  <data name="RootPassword" xml:space="preserve"><value>Password root</value></data>
+  <data name="PrivateKeyPassphrase" xml:space="preserve"><value>Passphrase chiave privata</value></data>
+  <data name="NewCredentialPlaceholder" xml:space="preserve"><value>Inserisci il nuovo valore da salvare</value></data>
+  <data name="Set" xml:space="preserve"><value>Imposta</value></data>
+  <data name="Remove" xml:space="preserve"><value>Rimuovi</value></data>
+  <data name="CredentialStored" xml:space="preserve"><value>Salvata</value></data>
+  <data name="CredentialMissing" xml:space="preserve"><value>Non impostata</value></data>
+  <data name="CredentialUnavailable" xml:space="preserve"><value>Non disponibile</value></data>
+  <data name="CredentialValueRequired" xml:space="preserve"><value>Inserisci un valore da salvare.</value></data>
+  <data name="ConfirmRemoveCredential" xml:space="preserve"><value>Rimuovere questa credenziale da Gestione credenziali di Windows?</value></data>
+  <data name="CredentialOperationFailed" xml:space="preserve"><value>Gestione credenziali di Windows non è riuscita a completare l'operazione.</value></data>
+  <data name="InventorySaveFailed" xml:space="preserve"><value>Impossibile salvare l'inventario dei server.</value></data>
+  <data name="ServerRemoved" xml:space="preserve"><value>Server rimosso.</value></data>
+  <data name="CredentialCleanupFailed" xml:space="preserve"><value>Server rimosso, ma non è stato possibile eliminare una o più credenziali salvate.</value></data>
+  <data name="StatusInventoryReady" xml:space="preserve"><value>Inventario server pronto</value></data>
+  <data name="ServerSaved" xml:space="preserve"><value>Server salvato.</value></data>
 </root>

@@ -6,23 +6,23 @@ Linux Update Manager is a Windows desktop application for managing Debian and Ub
 
 ## Implemented Features
 
-Phase 1 establishes the .NET 10 solution, a WinForms dashboard with synthetic demonstration rows, English and Italian resources, runtime language selection, and versioned JSON application configuration. The dashboard does not connect to servers or perform package operations yet.
+The current foundation includes a Windows Forms dashboard, English and Italian runtime localization, versioned application settings, server inventory management, grouping and filtering, and Windows Credential Manager integration. SSH connections and package operations are not implemented yet.
 
 ## Architecture
 
-- `LinuxUpdateManager.App` contains the Windows Forms entry point, dashboard, and `.resx` localization resources.
-- `LinuxUpdateManager.Core` contains application configuration models and file persistence, independent of WinForms.
+- `LinuxUpdateManager.App` contains the Windows Forms entry point, dashboard, server editor, credential manager UI, and `.resx` localization resources.
+- `LinuxUpdateManager.Core` contains application configuration, validated server inventory persistence, and Windows Credential Manager access, independent of WinForms controls.
 - `LinuxUpdateManager.Tests` contains unit tests for configuration defaults, persistence, validation, and recovery.
 
 ## Configuration
 
-The application stores `config.json` under `%LOCALAPPDATA%\LinuxUpdateManager`. The current schema stores the language preference, SSH and command timeout defaults, maximum concurrent operation setting, startup update-check preference, and file logging preference. Missing configuration is created with English (`en-US`) as the default. Malformed or unsupported configuration is preserved beside the original file before defaults are restored.
+The application stores `config.json` and `servers.json` under `%LOCALAPPDATA%\LinuxUpdateManager`. The server inventory is schema-versioned and stores stable IDs, display names, hosts, SSH ports and usernames, authentication and privilege choices, optional key paths, groups, notes, update preferences, and non-secret Credential Manager references. Inventory writes are atomic, duplicate endpoints are rejected, and malformed or unsupported files are preserved before an empty inventory is restored.
 
-No server inventory or credentials are stored by this phase.
+The first-run UI language is English (`en-US`). Credentials are stored separately in Windows Credential Manager under stable per-server references. SSH passwords, sudo passwords, root passwords, and private-key passphrases are supported. No credential values are written to JSON.
 
 ## Security
 
-The repository uses synthetic demonstration values only. Runtime configuration, logs, backup files, build output, and common key or certificate files are excluded by `.gitignore`. SSH host-key verification, credential storage, and privilege elevation are planned for later phases and are not implemented yet.
+The repository uses synthetic values only. Runtime configuration, logs, backup files, build output, and common key or certificate files are excluded by `.gitignore`. Inventory entries and credentials are local to the Windows user profile. SSH host-key verification, SSH connections, and privilege execution are planned for later phases and are not implemented yet.
 
 ## Build & Release
 
@@ -33,7 +33,7 @@ dotnet build LinuxUpdateManager.slnx
 dotnet test LinuxUpdateManager.slnx
 ```
 
-The project targets `win-x64` for distribution in a later phase. GitHub Actions and GitHub Releases have not been configured yet. No release packages are produced by Phase 1.
+The project targets `win-x64` for distribution in a later phase. GitHub Actions and GitHub Releases have not been configured yet. No release packages are produced yet.
 
 ## License
 
@@ -41,4 +41,4 @@ Linux Update Manager is licensed under the Apache License, Version 2.0. See [LIC
 
 ## Support the Project
 
-The application is intended to remain free, without registration, feature restrictions, or required contributions. An optional contribution section is planned for a later phase; no payment processing or contribution UI is implemented in this phase.
+The application is intended to remain free, without registration, feature restrictions, or required contributions. An optional contribution section is planned for a later phase; no payment processing or contribution UI is implemented yet.
