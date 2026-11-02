@@ -1,11 +1,14 @@
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
-import { createReadStream, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { constants, copyFileSync, createReadStream, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { once } from "node:events";
 
 const [packagePath, assetDirectory, version] = process.argv.slice(2);
 if (!packagePath || !assetDirectory || !/^\d+\.\d+\.\d+$/.test(version || "")) {
   throw new Error("Usage: node sign-release.mjs <package.zip> <asset-directory> <version>");
+}
+if (path.basename(packagePath) !== "LinuxUpdateManager-win-x64.zip") {
+  throw new Error("The release package must be named LinuxUpdateManager-win-x64.zip.");
 }
 
 const privatePem = process.env.UPDATE_SIGNING_PRIVATE_KEY?.replace(/\\n/g, "\n");
@@ -29,22 +32,25 @@ if (!pinnedDer.equals(derivedDer)) {
   throw new Error("The configured update signing key does not match the application's pinned public key.");
 }
 
+mkdirSync(assetDirectory, { recursive: true });
+const packageAssetPath = path.join(assetDirectory, path.basename(packagePath));
+copyFileSync(packagePath, packageAssetPath, constants.COPYFILE_EXCL);
+
 const hash = createHash("sha256");
-const packageStream = createReadStream(packagePath);
+const packageStream = createReadStream(packageAssetPath);
 packageStream.on("data", chunk => hash.update(chunk));
 await once(packageStream, "end");
 const sha256 = hash.digest("hex");
 const manifest = {
   version,
   tagName: `v${version}`,
-  assetName: path.basename(packagePath),
+  assetName: path.basename(packageAssetPath),
   sha256
 };
 const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 const signature = sign("RSA-SHA256", manifestBytes, privateKey).toString("base64");
 
-mkdirSync(assetDirectory, { recursive: true });
 writeFileSync(path.join(assetDirectory, "update-manifest.json"), manifestBytes, { flag: "wx" });
 writeFileSync(path.join(assetDirectory, "update-manifest.sig"), `${signature}\n`, { flag: "wx" });
-writeFileSync(path.join(assetDirectory, `${path.basename(packagePath)}.sha256`), `${sha256}  ${path.basename(packagePath)}\n`, { flag: "wx" });
-console.log(`Created signed manifest and SHA-256 checksum for ${path.basename(packagePath)}.`);
+writeFileSync(path.join(assetDirectory, `${path.basename(packageAssetPath)}.sha256`), `${sha256}  ${path.basename(packageAssetPath)}\n`, { flag: "wx" });
+console.log(`Created signed release assets for ${path.basename(packageAssetPath)}.`);
