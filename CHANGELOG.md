@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-11-02
+
+### Fixed
+
+- label PayPal.Me contribution button
+
 ## [1.0.4] - 2026-11-02
 
 ### Fixed
