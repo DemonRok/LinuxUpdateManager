@@ -172,25 +172,6 @@ async function main() {
     if (!releaseNotes) {
       throw new Error("The pending release has no matching CHANGELOG.md section.");
     }
-  } else if (tags.length > 0 && tags[0].version === currentVersion) {
-    const release = await existingRelease(tags[0].tag, token);
-    const expectedAssets = new Set([
-      "LinuxUpdateManager-win-x64.zip",
-      "LinuxUpdateManager-win-x64.zip.sha256",
-      "update-manifest.json",
-      "update-manifest.sig"
-    ]);
-    if (release && [...expectedAssets].every(name => release.assets.some(asset => asset.name === name))) {
-      note(`Release ${tags[0].tag} already exists with all expected assets; no duplicate was created.`);
-      setOutputs({ release: "false" });
-      return;
-    }
-
-    releaseVersion = tags[0].version;
-    releaseNotes = versionNotes(changelog, releaseVersion);
-    if (!releaseNotes) {
-      throw new Error(`CHANGELOG.md is missing the ${releaseVersion} release section.`);
-    }
   } else {
     let baseReference;
     if (tags.length > 0) {
@@ -214,26 +195,46 @@ async function main() {
     }
 
     const messages = readMessages(baseReference);
-    releaseVersion = calculateNextVersion(currentVersion, messages);
-    if (!releaseVersion) {
+    const nextVersion = calculateNextVersion(currentVersion, messages);
+    if (nextVersion) {
+      releaseVersion = nextVersion;
+      releaseNotes = unreleasedNotes(changelog) || notesFromCommits(messages);
+      if (!releaseNotes) {
+        throw new Error("No release notes could be assembled from CHANGELOG.md or Conventional Commits.");
+      }
+
+      const nextProject = projectSource.replace(/<Version>[^<]+<\/Version>/, `<Version>${releaseVersion}</Version>`);
+      writeFileSync(projectFile, nextProject, "utf8");
+      writeFileSync(changelogFile, replaceUnreleasedSection(
+        changelog,
+        releaseVersion,
+        new Date().toISOString().slice(0, 10),
+        releaseNotes), "utf8");
+      shouldPrepareFiles = true;
+    } else if (tags.length > 0) {
+      const release = await existingRelease(tags[0].tag, token);
+      const expectedAssets = new Set([
+        "LinuxUpdateManager-win-x64.zip",
+        "LinuxUpdateManager-win-x64.zip.sha256",
+        "update-manifest.json",
+        "update-manifest.sig"
+      ]);
+      if (release && [...expectedAssets].every(name => release.assets.some(asset => asset.name === name))) {
+        note(`Release ${tags[0].tag} already exists with all expected assets; no duplicate was created.`);
+        setOutputs({ release: "false" });
+        return;
+      }
+
+      releaseVersion = tags[0].version;
+      releaseNotes = versionNotes(changelog, releaseVersion);
+      if (!releaseNotes) {
+        throw new Error(`CHANGELOG.md is missing the ${releaseVersion} release section.`);
+      }
+    } else {
       note("Automated release skipped: commits since the previous release contain no feat:, fix:, or breaking change.");
       setOutputs({ release: "false" });
       return;
     }
-
-    releaseNotes = unreleasedNotes(changelog) || notesFromCommits(messages);
-    if (!releaseNotes) {
-      throw new Error("No release notes could be assembled from CHANGELOG.md or Conventional Commits.");
-    }
-
-    const nextProject = projectSource.replace(/<Version>[^<]+<\/Version>/, `<Version>${releaseVersion}</Version>`);
-    writeFileSync(projectFile, nextProject, "utf8");
-    writeFileSync(changelogFile, replaceUnreleasedSection(
-      changelog,
-      releaseVersion,
-      new Date().toISOString().slice(0, 10),
-      releaseNotes), "utf8");
-    shouldPrepareFiles = true;
   }
 
   const notesPath = path.join(process.env.RUNNER_TEMP || root, "LinuxUpdateManager-release-notes.md");
