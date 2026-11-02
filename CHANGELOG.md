@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-02
+
 ### Added
 
 - Optional Support the Project window with PayPal and Bitcoin links, with destinations stored in a dedicated resource.
