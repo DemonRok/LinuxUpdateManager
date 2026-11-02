@@ -209,4 +209,23 @@
   <data name="Import" xml:space="preserve"><value>Import</value></data>
   <data name="BackupConfirmSecretImport" xml:space="preserve"><value>Restore {0} credential(s) and {1} private key file(s) to this Windows account? Credentials will be written to Windows Credential Manager and key files to the app's local data folder.</value></data>
   <data name="BackupImportSucceeded" xml:space="preserve"><value>Restore complete. Servers imported: {0}; duplicate servers skipped: {1}; credentials restored: {2}; private keys restored: {3}; credential entries skipped: {4}.</value></data>
+  <data name="SupportProject" xml:space="preserve"><value>Support the Project</value></data>
+  <data name="SupportIntro" xml:space="preserve"><value>Linux Update Manager is free and open source. Contributions are optional and do not unlock features.</value></data>
+  <data name="SupportPayPal" xml:space="preserve"><value>Open PayPal</value></data>
+  <data name="SupportBitcoin" xml:space="preserve"><value>Bitcoin address</value></data>
+  <data name="SupportCopyBitcoin" xml:space="preserve"><value>Copy address</value></data>
+  <data name="SupportCopied" xml:space="preserve"><value>Bitcoin address copied.</value></data>
+  <data name="SupportCopyFailed" xml:space="preserve"><value>Could not copy the address: {0}</value></data>
+  <data name="SupportOpenFailed" xml:space="preserve"><value>Could not open PayPal: {0}</value></data>
+  <data name="CheckApplicationUpdates" xml:space="preserve"><value>Check App Updates</value></data>
+  <data name="CheckingApplicationUpdates" xml:space="preserve"><value>Checking for application updates…</value></data>
+  <data name="NoApplicationUpdates" xml:space="preserve"><value>No application updates are available.</value></data>
+  <data name="ApplicationUpdateTitle" xml:space="preserve"><value>Application update</value></data>
+  <data name="ApplicationUpdateAvailable" xml:space="preserve"><value>Version {0} is available. Review the release notes and choose whether to install it.</value></data>
+  <data name="ApplicationUpdateNow" xml:space="preserve"><value>Update Now</value></data>
+  <data name="ApplicationUpdateLater" xml:space="preserve"><value>Later</value></data>
+  <data name="ApplicationUpdateFailed" xml:space="preserve"><value>The application update could not be completed: {0}</value></data>
+  <data name="ApplicationUpdateBusy" xml:space="preserve"><value>Wait for the current SSH operation to finish before updating the application.</value></data>
+  <data name="DownloadingApplicationUpdate" xml:space="preserve"><value>Downloading and verifying the signed application update…</value></data>
+  <data name="ApplicationReleaseNotes" xml:space="preserve"><value>Release notes</value></data>
 </root>

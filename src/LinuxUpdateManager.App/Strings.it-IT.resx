@@ -209,4 +209,23 @@
   <data name="Import" xml:space="preserve"><value>Importa</value></data>
   <data name="BackupConfirmSecretImport" xml:space="preserve"><value>Ripristinare {0} credenziali e {1} file di chiave privata in questo account Windows? Le credenziali saranno salvate in Gestione credenziali di Windows e le chiavi nella cartella dati locale dell'app.</value></data>
   <data name="BackupImportSucceeded" xml:space="preserve"><value>Ripristino completato. Server importati: {0}; doppioni ignorati: {1}; credenziali ripristinate: {2}; chiavi private ripristinate: {3}; credenziali ignorate: {4}.</value></data>
+  <data name="SupportProject" xml:space="preserve"><value>Sostieni il progetto</value></data>
+  <data name="SupportIntro" xml:space="preserve"><value>Linux Update Manager è gratuito e open source. Le contribuzioni sono facoltative e non sbloccano funzionalità.</value></data>
+  <data name="SupportPayPal" xml:space="preserve"><value>Apri PayPal</value></data>
+  <data name="SupportBitcoin" xml:space="preserve"><value>Indirizzo Bitcoin</value></data>
+  <data name="SupportCopyBitcoin" xml:space="preserve"><value>Copia indirizzo</value></data>
+  <data name="SupportCopied" xml:space="preserve"><value>Indirizzo Bitcoin copiato.</value></data>
+  <data name="SupportCopyFailed" xml:space="preserve"><value>Impossibile copiare l'indirizzo: {0}</value></data>
+  <data name="SupportOpenFailed" xml:space="preserve"><value>Impossibile aprire PayPal: {0}</value></data>
+  <data name="CheckApplicationUpdates" xml:space="preserve"><value>Verifica aggiornamenti app</value></data>
+  <data name="CheckingApplicationUpdates" xml:space="preserve"><value>Ricerca degli aggiornamenti dell'applicazione…</value></data>
+  <data name="NoApplicationUpdates" xml:space="preserve"><value>Non sono disponibili aggiornamenti dell'applicazione.</value></data>
+  <data name="ApplicationUpdateTitle" xml:space="preserve"><value>Aggiornamento applicazione</value></data>
+  <data name="ApplicationUpdateAvailable" xml:space="preserve"><value>È disponibile la versione {0}. Leggi le note di rilascio e scegli se installarla.</value></data>
+  <data name="ApplicationUpdateNow" xml:space="preserve"><value>Aggiorna ora</value></data>
+  <data name="ApplicationUpdateLater" xml:space="preserve"><value>Più tardi</value></data>
+  <data name="ApplicationUpdateFailed" xml:space="preserve"><value>Impossibile completare l'aggiornamento dell'applicazione: {0}</value></data>
+  <data name="ApplicationUpdateBusy" xml:space="preserve"><value>Attendi il termine dell'operazione SSH in corso prima di aggiornare l'applicazione.</value></data>
+  <data name="DownloadingApplicationUpdate" xml:space="preserve"><value>Download e verifica dell'aggiornamento firmato in corso…</value></data>
+  <data name="ApplicationReleaseNotes" xml:space="preserve"><value>Note di rilascio</value></data>
 </root>

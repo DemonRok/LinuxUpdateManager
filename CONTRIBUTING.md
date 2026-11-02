@@ -20,6 +20,6 @@ Use only synthetic hostnames, addresses, usernames, and package data in code, te
 
 ## Commit Messages
 
-Use Conventional Commits, for example `feat: add server inventory model`, `fix: preserve malformed configuration`, or `docs: clarify build requirements`. The release automation described in the project specification is not implemented yet.
+Use Conventional Commits, for example `feat: add server inventory model`, `fix: preserve malformed configuration`, or `docs: clarify build requirements`. A `feat:` commit increments the minor version, a `fix:` commit increments the patch version, and a breaking change increments the major version. `docs:` and `chore:` commits do not create a release. The release workflow evaluates all commits since the last tag and applies the highest required increment.
 
 By submitting a contribution, you agree that it may be distributed under the project's Apache License 2.0.

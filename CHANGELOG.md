@@ -6,6 +6,9 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- Optional Support the Project window with PayPal and Bitcoin links, with destinations stored in a dedicated resource.
+- Asynchronous GitHub application update checks, RSA-signed release manifest verification, safe package extraction, external installation replacement, and previous-version rollback.
+- Windows GitHub Actions validation, history-wide secret scanning, repository content checks, automatic Conventional Commit versioning, and signed self-contained release packaging.
 - Initial .NET 10 solution with WinForms, Core, and unit test projects.
 - Initial dashboard and English/Italian runtime language selection.
 - Versioned JSON configuration with atomic persistence and malformed-file recovery.

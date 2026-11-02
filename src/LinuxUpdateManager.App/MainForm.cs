@@ -21,6 +21,8 @@ internal sealed class MainForm : Form
     private readonly PrivilegeElevationService _privilegeElevationService;
     private readonly UpdateDetectionService _updateDetectionService;
     private readonly UpdateExecutionService _updateExecutionService;
+    private readonly ApplicationUpdateService _applicationUpdateService = new();
+    private readonly ApplicationUpdateInstaller _applicationUpdateInstaller;
     private readonly ServerInventoryDocument _inventory;
     private readonly ConcurrentDictionary<Guid, UpdateCheckResult> _latestUpdateResults = new();
     private readonly ConcurrentDictionary<Guid, byte> _staleUpdateResults = new();
@@ -44,9 +46,13 @@ internal sealed class MainForm : Form
     private readonly Button _updateNow = new();
     private readonly Button _openHistory = new();
     private readonly Button _openBackupManager = new();
+    private readonly Button _supportProject = new();
+    private readonly Button _checkApplicationUpdates = new();
     private string _sortColumnName = "Name";
     private ListSortDirection _sortDirection = ListSortDirection.Ascending;
     private bool _operationInProgress;
+    private bool _applicationUpdateCheckInProgress;
+    private bool _applicationUpdateInProgress;
 
     public MainForm(
         AppConfiguration configuration,
@@ -65,6 +71,7 @@ internal sealed class MainForm : Form
         _privilegeElevationService = new PrivilegeElevationService(credentialService);
         _updateDetectionService = new UpdateDetectionService(_privilegeElevationService);
         _updateExecutionService = new UpdateExecutionService(_privilegeElevationService);
+        _applicationUpdateInstaller = new ApplicationUpdateInstaller(_applicationUpdateService);
         _inventory = inventory;
 
         Text = WindowTitle();
@@ -75,7 +82,14 @@ internal sealed class MainForm : Form
         BuildLayout();
         ApplyLanguage();
         AttachEvents();
-        Load += (_, _) => ResizeWindowForLocalizedContent();
+        Load += async (_, _) =>
+        {
+            ResizeWindowForLocalizedContent();
+            if (_configuration.CheckForUpdatesOnStartup)
+            {
+                await CheckApplicationUpdatesAsync(showNoUpdateMessage: false);
+            }
+        };
     }
 
     private void BuildLayout()
@@ -140,6 +154,8 @@ internal sealed class MainForm : Form
         ConfigureButton(_updateNow, "UpdateNow");
         ConfigureButton(_openHistory, "OperationHistory");
         ConfigureButton(_openBackupManager, "BackupRestore");
+        ConfigureButton(_checkApplicationUpdates, "CheckApplicationUpdates");
+        ConfigureButton(_supportProject, "SupportProject");
         _search.Width = 190;
         _search.Margin = new Padding(0, 6, 4, 3);
         _groupFilter.Width = 150;
@@ -155,6 +171,8 @@ internal sealed class MainForm : Form
         _toolbarActions.Controls.Add(_updateNow);
         _toolbarActions.Controls.Add(_openHistory);
         _toolbarActions.Controls.Add(_openBackupManager);
+        _toolbarActions.Controls.Add(_checkApplicationUpdates);
+        _toolbarActions.Controls.Add(_supportProject);
         _toolbarActions.Controls.Add(_search);
         _toolbarActions.Controls.Add(_groupFilter);
 
@@ -204,6 +222,8 @@ internal sealed class MainForm : Form
         _updateNow.Click += UpdateNowClicked;
         _openHistory.Click += OpenHistoryClicked;
         _openBackupManager.Click += OpenBackupManagerClicked;
+        _checkApplicationUpdates.Click += CheckApplicationUpdatesClicked;
+        _supportProject.Click += SupportProjectClicked;
         _servers.CellDoubleClick += ServerCellDoubleClicked;
         _servers.ColumnHeaderMouseClick += ServerColumnHeaderMouseClicked;
         _servers.SortCompare += ServerSortCompare;
@@ -228,6 +248,8 @@ internal sealed class MainForm : Form
         ConfigureButton(_updateNow, "UpdateNow");
         ConfigureButton(_openHistory, "OperationHistory");
         ConfigureButton(_openBackupManager, "BackupRestore");
+        ConfigureButton(_checkApplicationUpdates, "CheckApplicationUpdates");
+        ConfigureButton(_supportProject, "SupportProject");
 
         var preferredIndex = _configuration.Language == "it-IT" ? 1 : 0;
         if (_languageSelector.SelectedIndex != preferredIndex)
@@ -524,10 +546,11 @@ internal sealed class MainForm : Form
     private void UpdateCommandButtons()
     {
         var selected = SelectedServers();
-        var hasOneSelection = !_operationInProgress && selected.Count == 1;
-        var hasSelection = !_operationInProgress && selected.Count > 0;
+        var busy = _operationInProgress || _applicationUpdateInProgress;
+        var hasOneSelection = !busy && selected.Count == 1;
+        var hasSelection = !busy && selected.Count > 0;
 
-        _addServer.Enabled = !_operationInProgress;
+        _addServer.Enabled = !busy;
         _editServer.Enabled = hasOneSelection;
         _removeServer.Enabled = hasOneSelection;
         _manageCredentials.Enabled = hasOneSelection;
@@ -538,9 +561,11 @@ internal sealed class MainForm : Form
             _latestUpdateResults.TryGetValue(server.Id, out var result) &&
             result.Packages.Count > 0 &&
             !_staleUpdateResults.ContainsKey(server.Id));
-        _openHistory.Enabled = !_operationInProgress;
-        _openBackupManager.Enabled = !_operationInProgress;
-        _servers.Enabled = !_operationInProgress;
+        _openHistory.Enabled = !busy;
+        _openBackupManager.Enabled = !busy;
+        _checkApplicationUpdates.Enabled = !busy && !_applicationUpdateCheckInProgress;
+        _supportProject.Enabled = !busy;
+        _servers.Enabled = !busy;
     }
 
     private void OpenHistoryClicked(object? sender, EventArgs e)
@@ -564,6 +589,88 @@ internal sealed class MainForm : Form
             _credentialService,
             ApplyRestoredBackupAsync);
         backup.ShowDialog(this);
+    }
+
+    private void SupportProjectClicked(object? sender, EventArgs e)
+    {
+        using var contribution = new ContributionForm();
+        contribution.ShowDialog(this);
+    }
+
+    private void CheckApplicationUpdatesClicked(object? sender, EventArgs e) =>
+        _ = CheckApplicationUpdatesAsync(showNoUpdateMessage: true);
+
+    private async Task CheckApplicationUpdatesAsync(bool showNoUpdateMessage)
+    {
+        if (_applicationUpdateCheckInProgress || _applicationUpdateInProgress)
+        {
+            return;
+        }
+
+        _applicationUpdateCheckInProgress = true;
+        UpdateCommandButtons();
+        _status.Text = AppLocalizer.Get("CheckingApplicationUpdates");
+        var updaterStarted = false;
+        try
+        {
+            var currentVersion = GetType().Assembly.GetName().Version ?? new Version(0, 0, 0);
+            var release = await _applicationUpdateService.CheckForUpdateAsync(currentVersion);
+            if (release is null)
+            {
+                _status.Text = AppLocalizer.Get("StatusInventoryReady");
+                if (showNoUpdateMessage)
+                {
+                    MessageBox.Show(this, AppLocalizer.Get("NoApplicationUpdates"),
+                        AppLocalizer.Get("ApplicationUpdateTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+
+                return;
+            }
+
+            using var prompt = new ApplicationUpdateForm(release.Version, release.ReleaseNotes);
+            if (prompt.ShowDialog(this) != DialogResult.OK)
+            {
+                _status.Text = AppLocalizer.Get("StatusInventoryReady");
+                return;
+            }
+
+            if (_operationInProgress)
+            {
+                MessageBox.Show(this, AppLocalizer.Get("ApplicationUpdateBusy"),
+                    AppLocalizer.Get("ApplicationUpdateTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            _applicationUpdateInProgress = true;
+            UpdateCommandButtons();
+            _status.Text = AppLocalizer.Get("DownloadingApplicationUpdate");
+            await _applicationUpdateInstaller.StartAsync(release);
+            updaterStarted = true;
+            Application.Exit();
+        }
+        catch (Exception exception)
+        {
+            _status.Text = AppLocalizer.Get("StatusInventoryReady");
+            if (showNoUpdateMessage || exception is not HttpRequestException)
+            {
+                MessageBox.Show(this,
+                    string.Format(AppLocalizer.Get("ApplicationUpdateFailed"), exception.Message),
+                    AppLocalizer.Get("ApplicationUpdateTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        finally
+        {
+            _applicationUpdateCheckInProgress = false;
+            if (!updaterStarted)
+            {
+                _applicationUpdateInProgress = false;
+            }
+
+            if (!IsDisposed)
+            {
+                UpdateCommandButtons();
+            }
+        }
     }
 
     private Task ApplyRestoredBackupAsync(BackupRestoreResult result)

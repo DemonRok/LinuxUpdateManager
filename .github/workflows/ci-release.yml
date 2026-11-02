@@ -1,0 +1,129 @@
+name: CI and release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-update-manager-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Build, test, and validate repository
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore LinuxUpdateManager.slnx
+        shell: bash
+
+      - name: Build Release
+        run: dotnet build LinuxUpdateManager.slnx --configuration Release --no-restore
+        shell: bash
+
+      - name: Run automated tests
+        run: dotnet test LinuxUpdateManager.slnx --configuration Release --no-build --no-restore --logger "trx;LogFileName=LinuxUpdateManager.trx"
+        shell: bash
+
+      - name: Test release versioning rules
+        run: node --test .github/scripts/release-version.test.mjs
+        shell: bash
+
+      - name: Scan repository history for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+      - name: Validate tracked repository contents
+        run: node .github/scripts/validate-repository.mjs
+        shell: bash
+
+  release:
+    name: Package and publish eligible release
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
+    needs: validate
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Determine release version and notes
+        id: prepare
+        run: node .github/scripts/prepare-release.mjs
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}
+
+      - name: Restore release dependencies
+        if: steps.prepare.outputs.release == 'true'
+        run: dotnet restore LinuxUpdateManager.slnx --runtime win-x64
+        shell: bash
+
+      - name: Revalidate release build
+        if: steps.prepare.outputs.release == 'true'
+        run: |
+          dotnet build LinuxUpdateManager.slnx --configuration Release --runtime win-x64 --no-restore
+          dotnet test LinuxUpdateManager.slnx --configuration Release --runtime win-x64 --no-build --no-restore --logger "trx;LogFileName=LinuxUpdateManager-release.trx"
+        shell: bash
+
+      - name: Publish self-contained Windows x64 application
+        if: steps.prepare.outputs.release == 'true'
+        run: dotnet publish src/LinuxUpdateManager.App/LinuxUpdateManager.App.csproj --configuration Release --runtime win-x64 --self-contained true --no-restore --output "$RUNNER_TEMP/lum-publish" -p:Version="${{ steps.prepare.outputs.version }}" -p:DebugType=none
+        shell: bash
+
+      - name: Create ZIP package with license notices
+        if: steps.prepare.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/lum-package"
+          cp -a "$RUNNER_TEMP/lum-publish/." "$RUNNER_TEMP/lum-package/"
+          cp LICENSE NOTICE "$RUNNER_TEMP/lum-package/"
+          cd "$RUNNER_TEMP/lum-package"
+          tar.exe -a -c -f "$RUNNER_TEMP/LinuxUpdateManager-win-x64.zip" *
+        shell: bash
+
+      - name: Sign update manifest and create SHA-256 checksum
+        if: steps.prepare.outputs.release == 'true'
+        run: node .github/scripts/sign-release.mjs "$RUNNER_TEMP/LinuxUpdateManager-win-x64.zip" "$RUNNER_TEMP/lum-release-assets" "${{ steps.prepare.outputs.version }}"
+        shell: bash
+        env:
+          UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}
+
+      - name: Commit release version, tag, and publish GitHub Release
+        if: steps.prepare.outputs.release == 'true'
+        run: node .github/scripts/publish-release.mjs "${{ steps.prepare.outputs.version }}" "${{ steps.prepare.outputs.notes_path }}" "$RUNNER_TEMP/lum-release-assets"
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}

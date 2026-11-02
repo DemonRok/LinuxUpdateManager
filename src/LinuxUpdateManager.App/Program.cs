@@ -3,9 +3,14 @@ namespace LinuxUpdateManager.App;
 static class Program
 {
     [STAThread]
-    static async Task Main()
+    static async Task<int> Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (ApplicationUpdateInstaller.IsUpdateCommand(args))
+        {
+            return ApplicationUpdateInstaller.ApplyUpdate(args);
+        }
+
         var configurationService = new LinuxUpdateManager.Core.Configuration.ConfigurationService();
         var configuration = await configurationService.LoadAsync();
         var inventoryService = new LinuxUpdateManager.Core.Servers.ServerInventoryService();
@@ -35,5 +40,6 @@ static class Program
 
         Application.Run(new MainForm(
             configuration, configurationService, inventoryService, credentialService, historyService, inventory));
+        return 0;
     }
 }
