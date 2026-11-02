@@ -130,4 +130,83 @@
   <data name="UpdateServerCompleted" xml:space="preserve"><value>[{0}] Aggiornamento dei pacchetti completato.</value></data>
   <data name="UpdateServerCancelled" xml:space="preserve"><value>[{0}] Operazione annullata.</value></data>
   <data name="UpdateServerFailed" xml:space="preserve"><value>[{0}] Operazione non riuscita: {1}</value></data>
+  <data name="OperationHistory" xml:space="preserve"><value>Cronologia</value></data>
+  <data name="HistoryTitle" xml:space="preserve"><value>Cronologia operazioni</value></data>
+  <data name="HistoryDetailsTitle" xml:space="preserve"><value>Dettagli operazione</value></data>
+  <data name="HistoryDetailsSummary" xml:space="preserve"><value>Server: {0} ({1})&#xA;Operazione: {2} · Esito: {3}&#xA;Inizio: {4} · Fine: {5} · Codice uscita: {6}&#xA;Pacchetti: {7} · Aggiornamenti sicurezza: {8}&#xA;Errore: {9}</value></data>
+  <data name="HistorySearchPlaceholder" xml:space="preserve"><value>Cerca nella cronologia</value></data>
+  <data name="HistoryAllOperations" xml:space="preserve"><value>Tutte le operazioni</value></data>
+  <data name="HistoryAllResults" xml:space="preserve"><value>Tutti gli esiti</value></data>
+  <data name="HistoryDate" xml:space="preserve"><value>Data</value></data>
+  <data name="HistoryOperation" xml:space="preserve"><value>Operazione</value></data>
+  <data name="HistoryResult" xml:space="preserve"><value>Esito</value></data>
+  <data name="HistoryPackages" xml:space="preserve"><value>Pacchetti</value></data>
+  <data name="HistoryEntryCount" xml:space="preserve"><value>{0} operazioni</value></data>
+  <data name="HistoryRetention" xml:space="preserve"><value>Conserva la cronologia per</value></data>
+  <data name="HistoryRetentionHint" xml:space="preserve"><value>giorni (0 = sempre)</value></data>
+  <data name="HistoryRetentionSaved" xml:space="preserve"><value>Impostazione di conservazione salvata.</value></data>
+  <data name="HistoryPurgeFailed" xml:space="preserve"><value>Impostazione salvata, ma non è stato possibile eliminare le voci più vecchie: {0}</value></data>
+  <data name="HistorySaveFailed" xml:space="preserve"><value>Operazione completata, ma non è stato possibile salvare la voce nella cronologia.</value></data>
+  <data name="HistoryUnavailableAtStartup" xml:space="preserve"><value>Cronologia operazioni non disponibile: {0}</value></data>
+  <data name="HistoryOperationSshConnectionCheck" xml:space="preserve"><value>Verifica connessione SSH</value></data>
+  <data name="HistoryOperationPrivilegeCheck" xml:space="preserve"><value>Verifica privilegi</value></data>
+  <data name="HistoryOperationUpdateCheck" xml:space="preserve"><value>Verifica aggiornamenti</value></data>
+  <data name="HistoryOperationPackageUpgrade" xml:space="preserve"><value>Aggiornamento pacchetti</value></data>
+  <data name="HistoryResultSucceeded" xml:space="preserve"><value>Riuscita</value></data>
+  <data name="HistoryResultFailed" xml:space="preserve"><value>Non riuscita</value></data>
+  <data name="HistoryResultCancelled" xml:space="preserve"><value>Annullata</value></data>
+  <data name="HistoryExportText" xml:space="preserve"><value>Esporta TXT</value></data>
+  <data name="HistoryExportCsv" xml:space="preserve"><value>Esporta CSV</value></data>
+  <data name="HistoryTextFilter" xml:space="preserve"><value>File di testo (*.txt)|*.txt</value></data>
+  <data name="HistoryCsvFilter" xml:space="preserve"><value>File CSV (*.csv)|*.csv</value></data>
+  <data name="HistoryExportSucceeded" xml:space="preserve"><value>Cronologia esportata in {0}</value></data>
+  <data name="Refresh" xml:space="preserve"><value>Aggiorna</value></data>
+  <data name="BackupRestore" xml:space="preserve"><value>Backup / Ripristino</value></data>
+  <data name="BackupManagerTitle" xml:space="preserve"><value>Backup e ripristino</value></data>
+  <data name="BackupManagerDescription" xml:space="preserve"><value>Seleziona i server sopra. I backup completi e delle password sono protetti da password; i file delle chiavi private sono inclusi solo nel backup completo cifrato.</value></data>
+  <data name="BackupModeFull" xml:space="preserve"><value>Backup completo — configurazione, password e chiavi private</value></data>
+  <data name="BackupModeConfiguration" xml:space="preserve"><value>Solo configurazione — impostazioni app e server selezionati</value></data>
+  <data name="BackupModeCredentials" xml:space="preserve"><value>Solo password — credenziali e passphrase dei server selezionati</value></data>
+  <data name="BackupSelectServers" xml:space="preserve"><value>Server da includere:</value></data>
+  <data name="SelectAll" xml:space="preserve"><value>Seleziona tutti</value></data>
+  <data name="SelectNone" xml:space="preserve"><value>Deseleziona tutti</value></data>
+  <data name="BackupSelectAtLeastOneServer" xml:space="preserve"><value>Seleziona almeno un server per il backup completo o delle password.</value></data>
+  <data name="BackupConfirmFullExport" xml:space="preserve"><value>Il backup completo includerà le credenziali salvate e i file delle chiavi private di {0} server selezionati. Sarà cifrato con una password scelta da te. Conserva la password separatamente: non può essere recuperata. Continuare?</value></data>
+  <data name="BackupConfirmCredentialExport" xml:space="preserve"><value>Il backup conterrà le password e le passphrase salvate per {0} server selezionati. Sarà cifrato con una password scelta da te. Continuare?</value></data>
+  <data name="BackupExport" xml:space="preserve"><value>Esporta backup…</value></data>
+  <data name="BackupImport" xml:space="preserve"><value>Importa backup…</value></data>
+  <data name="BackupFileFilter" xml:space="preserve"><value>Backup Linux Update Manager (*.lum)|*.lum</value></data>
+  <data name="BackupExportSucceeded" xml:space="preserve"><value>Backup salvato in {0}</value></data>
+  <data name="BackupOperationFailed" xml:space="preserve"><value>Impossibile completare l'operazione di backup.</value></data>
+  <data name="BackupImportCancelled" xml:space="preserve"><value>Importazione del backup annullata.</value></data>
+  <data name="BackupPrivateKeyMissing" xml:space="preserve"><value>Il file della chiave privata del server '{0}' non è disponibile. Non è stato possibile creare un backup completo.</value></data>
+  <data name="BackupPrivateKeySizeInvalid" xml:space="preserve"><value>Il file della chiave privata del server '{0}' è vuoto o supera la dimensione supportata.</value></data>
+  <data name="BackupPasswordTitle" xml:space="preserve"><value>Password backup</value></data>
+  <data name="BackupPasswordLabel" xml:space="preserve"><value>Nuova password</value></data>
+  <data name="BackupPasswordPrompt" xml:space="preserve"><value>Password</value></data>
+  <data name="BackupPasswordConfirm" xml:space="preserve"><value>Conferma password</value></data>
+  <data name="BackupPasswordHint" xml:space="preserve"><value>Usa almeno 12 caratteri. L'app non conserva la password.</value></data>
+  <data name="BackupPasswordRequired" xml:space="preserve"><value>Inserisci la password del backup.</value></data>
+  <data name="BackupPasswordTooShort" xml:space="preserve"><value>Usa una password di almeno 12 caratteri.</value></data>
+  <data name="BackupPasswordMismatch" xml:space="preserve"><value>Le password non coincidono.</value></data>
+  <data name="Continue" xml:space="preserve"><value>Continua</value></data>
+  <data name="BackupPreviewTitle" xml:space="preserve"><value>Contenuto del backup</value></data>
+  <data name="BackupPreviewSummary" xml:space="preserve"><value>File: {0} · {1}&#xA;Configurazione: {2} · Credenziali: {3} · Chiavi private: {4}</value></data>
+  <data name="BackupIncluded" xml:space="preserve"><value>inclusa</value></data>
+  <data name="BackupOmitted" xml:space="preserve"><value>non inclusa</value></data>
+  <data name="BackupEncrypted" xml:space="preserve"><value>Cifrato</value></data>
+  <data name="BackupUnencrypted" xml:space="preserve"><value>Solo configurazione, non cifrato</value></data>
+  <data name="BackupCredentialCount" xml:space="preserve"><value>{0} credenziali</value></data>
+  <data name="BackupPrivateKeyCount" xml:space="preserve"><value>{0} file di chiave privata</value></data>
+  <data name="BackupPreviewServer" xml:space="preserve"><value>Server</value></data>
+  <data name="BackupPreviewStatus" xml:space="preserve"><value>Esito importazione</value></data>
+  <data name="BackupPreviewDuplicate" xml:space="preserve"><value>Doppione (ignorato nell'unione)</value></data>
+  <data name="BackupPreviewNew" xml:space="preserve"><value>Nuovo server</value></data>
+  <data name="BackupPreviewMatched" xml:space="preserve"><value>Credenziali associate a questo server</value></data>
+  <data name="BackupPreviewMissing" xml:space="preserve"><value>Nessun ID server corrispondente</value></data>
+  <data name="BackupMergeMode" xml:space="preserve"><value>Unisci i server e ignora i doppioni</value></data>
+  <data name="BackupReplaceMode" xml:space="preserve"><value>Sostituisci configurazione e server attuali</value></data>
+  <data name="Import" xml:space="preserve"><value>Importa</value></data>
+  <data name="BackupConfirmSecretImport" xml:space="preserve"><value>Ripristinare {0} credenziali e {1} file di chiave privata in questo account Windows? Le credenziali saranno salvate in Gestione credenziali di Windows e le chiavi nella cartella dati locale dell'app.</value></data>
+  <data name="BackupImportSucceeded" xml:space="preserve"><value>Ripristino completato. Server importati: {0}; doppioni ignorati: {1}; credenziali ripristinate: {2}; chiavi private ripristinate: {3}; credenziali ignorate: {4}.</value></data>
 </root>

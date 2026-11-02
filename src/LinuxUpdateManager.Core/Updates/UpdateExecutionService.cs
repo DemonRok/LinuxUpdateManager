@@ -33,7 +33,21 @@ public sealed class UpdateExecutionService(PrivilegeElevationService privilegeEl
         }
 
         var result = await provider.UpgradeAsync(session, server, outputReceived, cancellationToken);
-        UpdateDetectionService.EnsureSuccess(result, "Package upgrade failed.");
+        if (result.ExitStatus != 0)
+        {
+            throw new PackageUpgradeFailedException(result.ExitStatus, result.Output, result.Error);
+        }
+
         return result;
     }
+}
+
+public sealed class PackageUpgradeFailedException(int exitStatus, string output, string error)
+    : InvalidOperationException($"Package upgrade failed with exit status {exitStatus}.")
+{
+    public int ExitStatus { get; } = exitStatus;
+
+    public string Output { get; } = output;
+
+    public string Error { get; } = error;
 }

@@ -15,4 +15,6 @@ public sealed class AppConfiguration
     public bool CheckForUpdatesOnStartup { get; set; } = true;
 
     public bool EnableFileLogging { get; set; } = true;
+
+    public int HistoryRetentionDays { get; set; } = 90;
 }

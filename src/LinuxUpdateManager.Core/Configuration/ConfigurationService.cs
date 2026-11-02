@@ -99,7 +99,8 @@ public sealed class ConfigurationService
         configuration.Language is "en-US" or "it-IT" &&
         configuration.SshConnectionTimeoutSeconds is >= 1 and <= 300 &&
         configuration.CommandTimeoutSeconds is >= 1 and <= 86400 &&
-        configuration.MaximumConcurrentOperations is >= 1 and <= 32;
+        configuration.MaximumConcurrentOperations is >= 1 and <= 32 &&
+        configuration.HistoryRetentionDays is >= 0 and <= 3650;
 
     private void PreserveInvalidConfiguration()
     {
