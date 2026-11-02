@@ -123,7 +123,7 @@ jobs:
           cp -a "$RUNNER_TEMP/lum-publish/." "$RUNNER_TEMP/lum-package/"
           cp LICENSE NOTICE "$RUNNER_TEMP/lum-package/"
           cd "$RUNNER_TEMP/lum-package"
-          tar.exe -a -c -f "$RUNNER_TEMP/LinuxUpdateManager-win-x64.zip" *
+          tar.exe -a -c -f ../LinuxUpdateManager-win-x64.zip *
         shell: bash
 
       - name: Sign update manifest and create SHA-256 checksum
