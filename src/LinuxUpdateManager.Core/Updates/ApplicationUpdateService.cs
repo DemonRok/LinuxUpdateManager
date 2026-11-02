@@ -13,11 +13,19 @@ public sealed class ApplicationUpdateService : IDisposable
     private static readonly Uri LatestReleaseUri = new("https://api.github.com/repos/DemonRok/LinuxUpdateManager/releases/latest");
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
+    private readonly string _publicKeyPem;
 
     public ApplicationUpdateService(HttpClient? httpClient = null)
+        : this(httpClient, UpdateSigningPublicKey.Pem)
     {
+    }
+
+    internal ApplicationUpdateService(HttpClient? httpClient, string publicKeyPem)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(publicKeyPem);
         _httpClient = httpClient ?? new HttpClient();
         _ownsHttpClient = httpClient is null;
+        _publicKeyPem = publicKeyPem;
         _httpClient.Timeout = TimeSpan.FromMinutes(5);
         _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("LinuxUpdateManager/1.0 (+https://github.com/DemonRok/LinuxUpdateManager)");
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
@@ -83,7 +91,7 @@ public sealed class ApplicationUpdateService : IDisposable
             throw new InvalidDataException("The update manifest signature is malformed.", exception);
         }
 
-        var manifest = UpdatePackageManifest.VerifyAndParse(manifestBytes, signatureBytes);
+        var manifest = UpdatePackageManifest.VerifyAndParse(manifestBytes, signatureBytes, _publicKeyPem);
         if (!Version.TryParse(manifest.Version, out var manifestVersion) || manifestVersion != release.Version ||
             !string.Equals(manifest.TagName, release.TagName, StringComparison.Ordinal))
         {
