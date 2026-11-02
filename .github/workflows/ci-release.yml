@@ -106,8 +106,8 @@ jobs:
       - name: Revalidate release build
         if: steps.prepare.outputs.release == 'true'
         run: |
-          dotnet build LinuxUpdateManager.slnx --configuration Release --runtime win-x64 --no-restore
-          dotnet test LinuxUpdateManager.slnx --configuration Release --runtime win-x64 --no-build --no-restore --logger "trx;LogFileName=LinuxUpdateManager-release.trx"
+          dotnet build src/LinuxUpdateManager.App/LinuxUpdateManager.App.csproj --configuration Release --runtime win-x64 --no-restore
+          dotnet test tests/LinuxUpdateManager.Tests/LinuxUpdateManager.Tests.csproj --configuration Release --no-restore --logger "trx;LogFileName=LinuxUpdateManager-release.trx"
         shell: bash
 
       - name: Publish self-contained Windows x64 application
