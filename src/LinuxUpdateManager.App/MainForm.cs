@@ -27,6 +27,8 @@ internal sealed class MainForm : Form
         Font = new Font("Segoe UI", 9F);
         BuildLayout();
         ApplyLanguage();
+        _languageSelector.SelectedIndexChanged += LanguageSelectorChanged;
+        Load += (_, _) => ResizeWindowForLocalizedContent();
     }
 
     private void BuildLayout()
@@ -53,7 +55,6 @@ internal sealed class MainForm : Form
         _languageSelector.DropDownStyle = ComboBoxStyle.DropDownList;
         _languageSelector.Width = 120;
         _languageSelector.Items.AddRange(["English", "Italiano"]);
-        _languageSelector.SelectedIndexChanged += LanguageSelectorChanged;
         _languageLabel.AutoSize = true;
         _languageLabel.TextAlign = ContentAlignment.MiddleLeft;
         _languageLabel.Margin = new Padding(0, 7, 8, 0);
@@ -128,7 +129,6 @@ internal sealed class MainForm : Form
             AppLocalizer.Get("StatusNotConnected"), "—", "—", AppLocalizer.Get("No"),
             AppLocalizer.Get("StatusNotChecked"), AppLocalizer.Get("StatusIdle"));
 
-        ResizeWindowForLocalizedContent();
     }
 
     private void ResizeWindowForLocalizedContent()
@@ -183,6 +183,7 @@ internal sealed class MainForm : Form
         _configuration.Language = _languageSelector.SelectedIndex == 1 ? "it-IT" : "en-US";
         AppLocalizer.SetLanguage(_configuration.Language);
         ApplyLanguage();
+        ResizeWindowForLocalizedContent();
         try
         {
             await _configurationService.SaveAsync(_configuration);

@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## [0.1.0] - 2026-11-02
+## [Unreleased]
 
 ### Added
 
@@ -10,3 +10,8 @@ All notable changes to this project are documented here.
 - Synthetic server dashboard and English/Italian runtime language selection.
 - Versioned JSON configuration with atomic persistence and malformed-file recovery.
 - Apache License 2.0 project documentation.
+- Multi-resolution Windows application icon.
+
+### Changed
+
+- Dashboard window sizing adapts to localized column content and available screen space.
