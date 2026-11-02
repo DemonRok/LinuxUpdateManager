@@ -180,11 +180,41 @@ internal sealed class ApplicationUpdateInstaller
             throw new InvalidDataException("The signed package does not contain the expected application version.");
         }
 
-        using (var parentProcess = Process.GetProcessById(parentProcessId))
+        WaitForParentProcessExit(parentProcessId, applicationPath);
+
+        ReplaceInstallation(installDirectory, payloadDirectory, workDirectory);
+    }
+
+    internal static void WaitForParentProcessExit(int parentProcessId, string expectedApplicationPath)
+    {
+        Process parentProcess;
+        try
         {
-            var parentExecutable = parentProcess.MainModule?.FileName;
+            parentProcess = Process.GetProcessById(parentProcessId);
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+
+        using (parentProcess)
+        {
+            string? parentExecutable;
+            try
+            {
+                parentExecutable = parentProcess.MainModule?.FileName;
+            }
+            catch (InvalidOperationException) when (HasProcessExited(parentProcess))
+            {
+                return;
+            }
+            catch (System.ComponentModel.Win32Exception) when (HasProcessExited(parentProcess))
+            {
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(parentExecutable) ||
-                !string.Equals(Path.GetFullPath(parentExecutable), applicationPath, StringComparison.OrdinalIgnoreCase))
+                !string.Equals(Path.GetFullPath(parentExecutable), expectedApplicationPath, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException("The process being updated does not match this installation.");
             }
@@ -194,8 +224,18 @@ internal sealed class ApplicationUpdateInstaller
                 throw new TimeoutException("The application did not close in time. No files were changed.");
             }
         }
+    }
 
-        ReplaceInstallation(installDirectory, payloadDirectory, workDirectory);
+    private static bool HasProcessExited(Process process)
+    {
+        try
+        {
+            return process.HasExited;
+        }
+        catch (InvalidOperationException)
+        {
+            return true;
+        }
     }
 
     private static void ReplaceInstallation(string installDirectory, string payloadDirectory, string workDirectory)

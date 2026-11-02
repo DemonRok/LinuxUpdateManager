@@ -207,6 +207,24 @@ public sealed class ApplicationUpdateTests
         }
     }
 
+    [Fact]
+    public void UpdateHelperContinuesWhenParentProcessAlreadyExited()
+    {
+        ApplicationUpdateInstaller.WaitForParentProcessExit(
+            int.MaxValue,
+            Path.Combine(Path.GetTempPath(), "LinuxUpdateManager.App.exe"));
+    }
+
+    [Fact]
+    public void UpdateHelperRejectsAnUnrelatedRunningProcess()
+    {
+        using var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+        var unexpectedPath = Path.Combine(Path.GetTempPath(), "not-the-running-application.exe");
+
+        Assert.Throws<InvalidOperationException>(() =>
+            ApplicationUpdateInstaller.WaitForParentProcessExit(currentProcess.Id, unexpectedPath));
+    }
+
     [Theory]
     [InlineData("../escape.txt")]
     [InlineData("./unexpected.txt")]
