@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-02
+
+### Fixed
+
+- release patches after tagged versions
+- parse signed release manifests
+
 ## [1.0.0] - 2026-11-02
 
 ### Added
