@@ -44,7 +44,9 @@
   <data name="Authentication" xml:space="preserve"><value>Autenticazione</value></data>
   <data name="Password" xml:space="preserve"><value>Password</value></data>
   <data name="PrivateKey" xml:space="preserve"><value>Chiave privata</value></data>
-  <data name="PrivateKeyPath" xml:space="preserve"><value>Percorso chiave privata</value></data>
+  <data name="Browse" xml:space="preserve"><value>Sfoglia…</value></data>
+  <data name="SelectPrivateKey" xml:space="preserve"><value>Seleziona la chiave privata</value></data>
+  <data name="PrivateKeyFileFilter" xml:space="preserve"><value>File di chiave privata|id_*;*.pem;*.key;*.ppk|Tutti i file|*.*</value></data>
   <data name="PrivilegeMethod" xml:space="preserve"><value>Elevazione privilegi</value></data>
   <data name="DirectRoot" xml:space="preserve"><value>Accesso root diretto</value></data>
   <data name="Sudo" xml:space="preserve"><value>sudo</value></data>
@@ -95,4 +97,18 @@
   <data name="UnknownHostKey" xml:space="preserve"><value>L'identità di {0}:{1} non è ancora nota. Tipo di chiave: {2}&#xA;Impronta digitale: {3}&#xA;&#xA;Consideri attendibile questa chiave host?</value></data>
   <data name="HostKeyMismatch" xml:space="preserve"><value>La chiave SSH di {0} è cambiata.&#xA;Attesa: {1}&#xA;Ricevuta: {2}&#xA;&#xA;Connessione bloccata. Verifica la modifica con l'amministratore del server.</value></data>
   <data name="HostKeySaved" xml:space="preserve"><value>Chiave host verificata e salvata.</value></data>
+  <data name="Yes" xml:space="preserve"><value>Sì</value></data>
+  <data name="Unknown" xml:space="preserve"><value>N/D</value></data>
+  <data name="UpdateCheckInProgress" xml:space="preserve"><value>Aggiornamento degli indici APT e verifica aggiornamenti…</value></data>
+  <data name="UpdateCheckSucceeded" xml:space="preserve"><value>Verifica completata. Aggiornamenti disponibili per {0} pacchetti.</value></data>
+  <data name="UpdateCheckFailed" xml:space="preserve"><value>Verifica aggiornamenti non riuscita.</value></data>
+  <data name="StatusUpToDate" xml:space="preserve"><value>Aggiornato</value></data>
+  <data name="StatusUpdatesFound" xml:space="preserve"><value>Trovati aggiornamenti per {0} pacchetti</value></data>
+  <data name="PackageDetailsTitle" xml:space="preserve"><value>Aggiornamenti pacchetti — {0}</value></data>
+  <data name="NoPackageUpdates" xml:space="preserve"><value>Non sono disponibili aggiornamenti per i pacchetti.</value></data>
+  <data name="PackageColumnName" xml:space="preserve"><value>Pacchetto</value></data>
+  <data name="PackageColumnCurrent" xml:space="preserve"><value>Versione attuale</value></data>
+  <data name="PackageColumnCandidate" xml:space="preserve"><value>Versione proposta</value></data>
+  <data name="PackageColumnSecurity" xml:space="preserve"><value>Sicurezza</value></data>
+  <data name="PackageColumnRepository" xml:space="preserve"><value>Repository</value></data>
 </root>

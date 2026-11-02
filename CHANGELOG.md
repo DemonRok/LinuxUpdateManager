@@ -16,6 +16,7 @@ All notable changes to this project are documented here.
 - Windows Credential Manager support for SSH, sudo, root, and private-key passphrase credentials.
 - SSH connection checks using SSH.NET, with first-use SHA-256 host-key confirmation and pinning.
 - Root privilege checks for direct root, `sudo`, `sudo -i`, and `su -` configurations.
+- Debian and Ubuntu detection, APT index refresh, package update details, security update counts when repository metadata identifies them, and reboot-required status.
 
 ### Changed
 

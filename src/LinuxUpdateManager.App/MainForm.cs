@@ -2,6 +2,7 @@ using LinuxUpdateManager.App.Localization;
 using LinuxUpdateManager.Core.Configuration;
 using LinuxUpdateManager.Core.Security;
 using LinuxUpdateManager.Core.Servers;
+using LinuxUpdateManager.Core.Updates;
 
 namespace LinuxUpdateManager.App;
 
@@ -13,13 +14,16 @@ internal sealed class MainForm : Form
     private readonly CredentialService _credentialService;
     private readonly SshConnectionService _sshConnectionService;
     private readonly PrivilegeElevationService _privilegeElevationService;
+    private readonly UpdateDetectionService _updateDetectionService;
     private readonly ServerInventoryDocument _inventory;
+    private readonly Dictionary<Guid, UpdateCheckResult> _latestUpdateResults = [];
     private readonly ComboBox _languageSelector = new();
     private readonly Label _languageLabel = new();
     private readonly Label _title = new();
     private readonly Label _notice = new();
     private readonly Label _status = new();
     private readonly DataGridView _servers = new();
+    private readonly FlowLayoutPanel _toolbarActions = new();
     private readonly TextBox _search = new();
     private readonly ComboBox _groupFilter = new();
     private readonly Button _addServer = new();
@@ -28,6 +32,7 @@ internal sealed class MainForm : Form
     private readonly Button _manageCredentials = new();
     private readonly Button _testConnection = new();
     private readonly Button _testPrivileges = new();
+    private readonly Button _checkUpdates = new();
 
     public MainForm(
         AppConfiguration configuration,
@@ -42,6 +47,7 @@ internal sealed class MainForm : Form
         _credentialService = credentialService;
         _sshConnectionService = new SshConnectionService(credentialService);
         _privilegeElevationService = new PrivilegeElevationService(credentialService);
+        _updateDetectionService = new UpdateDetectionService(_privilegeElevationService);
         _inventory = inventory;
 
         Text = AppLocalizer.Get("AppTitle");
@@ -99,32 +105,33 @@ internal sealed class MainForm : Form
         _notice.ForeColor = Color.DimGray;
         _notice.TextAlign = ContentAlignment.MiddleLeft;
 
-        var toolbar = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            AutoScroll = true
-        };
+        _toolbarActions.Dock = DockStyle.Fill;
+        _toolbarActions.FlowDirection = FlowDirection.LeftToRight;
+        _toolbarActions.WrapContents = false;
+        _toolbarActions.AutoScroll = false;
+        _toolbarActions.Margin = Padding.Empty;
+
         ConfigureButton(_addServer, "AddServer");
         ConfigureButton(_editServer, "EditServer");
         ConfigureButton(_removeServer, "RemoveServer");
         ConfigureButton(_manageCredentials, "ManageCredentials");
         ConfigureButton(_testConnection, "TestConnection");
         ConfigureButton(_testPrivileges, "TestPrivileges");
+        ConfigureButton(_checkUpdates, "CheckForUpdates");
         _search.Width = 190;
-        _search.Margin = new Padding(8, 7, 4, 3);
+        _search.Margin = new Padding(0, 6, 4, 3);
         _groupFilter.Width = 150;
         _groupFilter.DropDownStyle = ComboBoxStyle.DropDownList;
-        _groupFilter.Margin = new Padding(4, 6, 3, 3);
-        toolbar.Controls.Add(_addServer);
-        toolbar.Controls.Add(_editServer);
-        toolbar.Controls.Add(_removeServer);
-        toolbar.Controls.Add(_manageCredentials);
-        toolbar.Controls.Add(_testConnection);
-        toolbar.Controls.Add(_testPrivileges);
-        toolbar.Controls.Add(_search);
-        toolbar.Controls.Add(_groupFilter);
+        _groupFilter.Margin = new Padding(0, 5, 3, 3);
+        _toolbarActions.Controls.Add(_addServer);
+        _toolbarActions.Controls.Add(_editServer);
+        _toolbarActions.Controls.Add(_removeServer);
+        _toolbarActions.Controls.Add(_manageCredentials);
+        _toolbarActions.Controls.Add(_testConnection);
+        _toolbarActions.Controls.Add(_testPrivileges);
+        _toolbarActions.Controls.Add(_checkUpdates);
+        _toolbarActions.Controls.Add(_search);
+        _toolbarActions.Controls.Add(_groupFilter);
 
         _servers.Dock = DockStyle.Fill;
         _servers.ReadOnly = true;
@@ -143,7 +150,7 @@ internal sealed class MainForm : Form
 
         root.Controls.Add(header, 0, 0);
         root.Controls.Add(_notice, 0, 1);
-        root.Controls.Add(toolbar, 0, 2);
+        root.Controls.Add(_toolbarActions, 0, 2);
         root.Controls.Add(_servers, 0, 3);
         root.Controls.Add(_status, 0, 4);
         Controls.Add(root);
@@ -168,6 +175,8 @@ internal sealed class MainForm : Form
         _manageCredentials.Click += ManageCredentialsClicked;
         _testConnection.Click += TestConnectionClicked;
         _testPrivileges.Click += TestPrivilegesClicked;
+        _checkUpdates.Click += CheckUpdatesClicked;
+        _servers.CellDoubleClick += ServerCellDoubleClicked;
     }
 
     private void ApplyLanguage()
@@ -185,6 +194,7 @@ internal sealed class MainForm : Form
         ConfigureButton(_manageCredentials, "ManageCredentials");
         ConfigureButton(_testConnection, "TestConnection");
         ConfigureButton(_testPrivileges, "TestPrivileges");
+        ConfigureButton(_checkUpdates, "CheckForUpdates");
 
         var preferredIndex = _configuration.Language == "it-IT" ? 1 : 0;
         if (_languageSelector.SelectedIndex != preferredIndex)
@@ -225,19 +235,21 @@ internal sealed class MainForm : Form
         _servers.Rows.Clear();
         foreach (var server in _inventory.Servers)
         {
+            _latestUpdateResults.TryGetValue(server.Id, out var result);
             var rowIndex = _servers.Rows.Add(
                 server.Id,
                 server.Name,
                 server.Host,
                 server.Group,
-                "—",
-                "—",
-                AppLocalizer.Get("StatusNotConnected"),
-                "—",
-                "—",
-                "—",
-                AppLocalizer.Get("StatusNotChecked"),
-                AppLocalizer.Get("StatusIdle"));
+                result?.Distribution ?? "—",
+                result?.Version ?? "—",
+                AppLocalizer.Get(result is null ? "StatusNotConnected" : "StatusConnected"),
+                result?.Packages.Count.ToString(AppLocalizer.CurrentCulture) ?? "—",
+                FormatSecurityCount(result?.SecurityUpdateCount),
+                result is null ? "—" : AppLocalizer.Get(result.RebootRequired ? "Yes" : "No"),
+                result?.CheckedAt.ToLocalTime().ToString("g", AppLocalizer.CurrentCulture)
+                    ?? AppLocalizer.Get("StatusNotChecked"),
+                result is null ? AppLocalizer.Get("StatusIdle") : FormatUpdateSummary(result));
             _servers.Rows[rowIndex].Tag = server.Id;
         }
 
@@ -275,6 +287,14 @@ internal sealed class MainForm : Form
         _groupFilter.SelectedIndex = previousIndex > 0 ? previousIndex : 0;
         _groupFilter.EndUpdate();
     }
+
+    private static string FormatSecurityCount(int? count) =>
+        count?.ToString(AppLocalizer.CurrentCulture) ?? AppLocalizer.Get("Unknown");
+
+    private static string FormatUpdateSummary(UpdateCheckResult result) =>
+        result.Packages.Count == 0
+            ? AppLocalizer.Get("StatusUpToDate")
+            : string.Format(AppLocalizer.Get("StatusUpdatesFound"), result.Packages.Count);
 
     private void ApplyFilters()
     {
@@ -318,7 +338,10 @@ internal sealed class MainForm : Form
             .Where(column => column.Visible)
             .Sum(column => column.Width);
         var contentPanel = (TableLayoutPanel)_servers.Parent!;
-        var desiredClientWidth = gridWidth + contentPanel.Padding.Horizontal;
+        var toolbarWidth = _toolbarActions.Controls.Cast<Control>()
+            .Sum(control => (control is Button && control.AutoSize ? control.PreferredSize.Width : control.Width) +
+                            control.Margin.Horizontal) + _toolbarActions.Padding.Horizontal;
+        var desiredClientWidth = Math.Max(gridWidth, toolbarWidth) + contentPanel.Padding.Horizontal;
         var workingArea = Screen.FromControl(this).WorkingArea;
         var maximumOuterWidth = Math.Max(400, workingArea.Width - 32);
         var maximumOuterHeight = Math.Max(360, workingArea.Height - 32);
@@ -364,6 +387,7 @@ internal sealed class MainForm : Form
         _manageCredentials.Enabled = hasSelection;
         _testConnection.Enabled = hasSelection;
         _testPrivileges.Enabled = hasSelection;
+        _checkUpdates.Enabled = hasSelection;
     }
 
     private async void TestConnectionClicked(object? sender, EventArgs e)
@@ -388,6 +412,79 @@ internal sealed class MainForm : Form
         }
 
         await RunSshCheckAsync(selected, testPrivileges: true);
+    }
+
+    private async void CheckUpdatesClicked(object? sender, EventArgs e)
+    {
+        var selected = SelectedServer();
+        if (selected is null)
+        {
+            ShowSelectServerMessage();
+            return;
+        }
+
+        await RunUpdateCheckAsync(selected);
+    }
+
+    private void ServerCellDoubleClicked(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (e.RowIndex < 0 || _servers.Rows[e.RowIndex].Tag is not Guid serverId ||
+            !_latestUpdateResults.TryGetValue(serverId, out var result))
+        {
+            return;
+        }
+
+        var server = _inventory.Servers.FirstOrDefault(item => item.Id == serverId);
+        if (server is null)
+        {
+            return;
+        }
+
+        using var details = new PackageUpdatesForm(server.Name, result);
+        details.ShowDialog(this);
+    }
+
+    private async Task RunUpdateCheckAsync(ServerProfile server)
+    {
+        _testConnection.Enabled = false;
+        _testPrivileges.Enabled = false;
+        _checkUpdates.Enabled = false;
+        SetServerStatus(server.Id, AppLocalizer.Get("StatusConnecting"), AppLocalizer.Get("StatusChecking"));
+        _status.Text = AppLocalizer.Get("UpdateCheckInProgress");
+        var connected = false;
+
+        try
+        {
+            using var session = await _sshConnectionService.ConnectAsync(server, ConfirmUnknownHostKey);
+            connected = true;
+            if (session.NewlyTrustedFingerprint is { Length: > 0 } fingerprint &&
+                !await SaveTrustedFingerprintAsync(server, fingerprint))
+            {
+                SetServerStatus(server.Id, AppLocalizer.Get("StatusNotConnected"), AppLocalizer.Get("StatusFailed"));
+                return;
+            }
+
+            var result = await _updateDetectionService.CheckAsync(session, server);
+            _latestUpdateResults[server.Id] = result;
+            RefreshRows(server.Id);
+            RefreshGroupFilter();
+            ApplyFilters();
+            ResizeWindowForLocalizedContent();
+            _status.Text = string.Format(AppLocalizer.Get("UpdateCheckSucceeded"), result.Packages.Count);
+        }
+        catch (Exception exception)
+        {
+            SetServerStatus(server.Id,
+                AppLocalizer.Get(connected ? "StatusConnected" : "StatusNotConnected"),
+                AppLocalizer.Get("StatusFailed"));
+            _status.Text = AppLocalizer.Get("UpdateCheckFailed");
+            MessageBox.Show(this, exception.Message, AppLocalizer.Get("AppTitle"), MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+        finally
+        {
+            UpdateCommandButtons();
+        }
     }
 
     private async Task RunSshCheckAsync(ServerProfile server, bool testPrivileges)
@@ -518,6 +615,9 @@ internal sealed class MainForm : Form
         updatedServers.Add(editor.Profile);
         if (await SaveInventoryAsync(updatedServers, editor.Profile.Id))
         {
+            _latestUpdateResults.Remove(editor.Profile.Id);
+            RefreshRows(editor.Profile.Id);
+            ApplyFilters();
             _status.Text = AppLocalizer.Get("ServerSaved");
         }
     }
@@ -542,6 +642,9 @@ internal sealed class MainForm : Form
         updatedServers[index] = editor.Profile;
         if (await SaveInventoryAsync(updatedServers, editor.Profile.Id))
         {
+            _latestUpdateResults.Remove(editor.Profile.Id);
+            RefreshRows(editor.Profile.Id);
+            ApplyFilters();
             _status.Text = AppLocalizer.Get("ServerSaved");
         }
     }
@@ -566,6 +669,8 @@ internal sealed class MainForm : Form
         {
             return;
         }
+
+        _latestUpdateResults.Remove(selected.Id);
 
         var cleanupFailed = false;
         foreach (var kind in Enum.GetValues<CredentialKind>())

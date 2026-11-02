@@ -144,11 +144,12 @@ public sealed class SshConnectionSession(SshClient client, string? newlyTrustedF
     public async Task<SshCommandResult> ExecuteAsync(
         string commandText,
         string? standardInput = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        TimeSpan? commandTimeout = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         using var command = client.CreateCommand(commandText);
-        command.CommandTimeout = TimeSpan.FromSeconds(15);
+        command.CommandTimeout = commandTimeout ?? TimeSpan.FromSeconds(15);
 
         if (standardInput is null)
         {

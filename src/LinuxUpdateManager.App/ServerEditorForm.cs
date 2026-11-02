@@ -12,7 +12,16 @@ internal sealed class ServerEditorForm : Form
     private readonly TextBox _username = new();
     private readonly ComboBox _authentication = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly Label _privateKeyLabel = new();
-    private readonly TextBox _privateKeyPath = new();
+    private readonly TextBox _privateKeyPath = new() { ReadOnly = true };
+    private readonly Button _browsePrivateKey = new();
+    private readonly TableLayoutPanel _privateKeyPicker = new()
+    {
+        AutoSize = true,
+        AutoSizeMode = AutoSizeMode.GrowAndShrink,
+        ColumnCount = 2,
+        RowCount = 1,
+        Padding = Padding.Empty
+    };
     private readonly ComboBox _privilege = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly TextBox _group = new();
     private readonly TextBox _notes = new() { Multiline = true, Height = 72, ScrollBars = ScrollBars.Vertical };
@@ -24,13 +33,14 @@ internal sealed class ServerEditorForm : Form
     {
         _profile = profile is null ? new ServerProfile() : Copy(profile);
         Text = AppLocalizer.Get("ServerDetails");
-        Icon = System.Drawing.SystemIcons.Application;
+        Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath)
+            ?? System.Drawing.SystemIcons.Application;
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(610, 570);
+        ClientSize = new Size(610, 420);
         MinimumSize = Size;
         BuildLayout();
         LoadProfile();
@@ -45,15 +55,16 @@ internal sealed class ServerEditorForm : Form
             RowCount = 2,
             Padding = new Padding(16)
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        SetRowStyle(root, 0, new RowStyle(SizeType.AutoSize));
+        SetRowStyle(root, 1, new RowStyle(SizeType.AutoSize));
 
         var fields = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
             ColumnCount = 2,
             RowCount = 10,
-            AutoScroll = true,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Padding = new Padding(0, 0, 8, 0)
         };
         fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
@@ -63,7 +74,18 @@ internal sealed class ServerEditorForm : Form
         AddField(fields, 2, "SshPort", _port);
         AddField(fields, 3, "Username", _username);
         AddField(fields, 4, "Authentication", _authentication);
-        AddField(fields, 5, "PrivateKeyPath", _privateKeyPath, _privateKeyLabel);
+        _privateKeyPicker.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _privateKeyPicker.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _privateKeyPicker.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _privateKeyPath.Dock = DockStyle.Fill;
+        _privateKeyPath.Margin = new Padding(0, 2, 5, 2);
+        _browsePrivateKey.Text = AppLocalizer.Get("Browse");
+        _browsePrivateKey.AutoSize = true;
+        _browsePrivateKey.Margin = Padding.Empty;
+        _browsePrivateKey.Click += BrowsePrivateKeyClicked;
+        _privateKeyPicker.Controls.Add(_privateKeyPath, 0, 0);
+        _privateKeyPicker.Controls.Add(_browsePrivateKey, 1, 0);
+        AddField(fields, 5, "PrivateKey", _privateKeyPicker, _privateKeyLabel);
         AddField(fields, 6, "PrivilegeMethod", _privilege);
         AddField(fields, 7, "ServerGroup", _group);
         AddField(fields, 8, "Notes", _notes);
@@ -81,9 +103,11 @@ internal sealed class ServerEditorForm : Form
 
         var buttons = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Right,
             FlowDirection = FlowDirection.RightToLeft,
-            WrapContents = false
+            WrapContents = false,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink
         };
         var save = new Button { Text = AppLocalizer.Get("Save"), AutoSize = true };
         var cancel = new Button { Text = AppLocalizer.Get("Cancel"), AutoSize = true, DialogResult = DialogResult.Cancel };
@@ -100,17 +124,29 @@ internal sealed class ServerEditorForm : Form
 
     private static void AddField(TableLayoutPanel fields, int row, string labelKey, Control control, Label? existingLabel = null)
     {
-        fields.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        SetRowStyle(fields, row, new RowStyle(SizeType.AutoSize));
         var label = existingLabel ?? new Label();
         label.Text = AppLocalizer.Get(labelKey);
         label.Dock = DockStyle.Fill;
         label.TextAlign = ContentAlignment.MiddleLeft;
         label.AutoSize = true;
         label.Padding = new Padding(0, 5, 8, 5);
-        control.Dock = control is CheckBox ? DockStyle.Left : DockStyle.Top;
-        control.Margin = new Padding(3, 5, 3, 5);
+        control.Dock = control is CheckBox ? DockStyle.Left : control is TableLayoutPanel ? DockStyle.Fill : DockStyle.Top;
+        control.Margin = new Padding(3, 3, 3, 3);
         fields.Controls.Add(label, 0, row);
         fields.Controls.Add(control, 1, row);
+    }
+
+    private static void SetRowStyle(TableLayoutPanel panel, int row, RowStyle style)
+    {
+        if (panel.RowStyles.Count <= row)
+        {
+            panel.RowStyles.Add(style);
+        }
+        else
+        {
+            panel.RowStyles[row] = style;
+        }
     }
 
     private void LoadProfile()
@@ -132,8 +168,32 @@ internal sealed class ServerEditorForm : Form
     private void UpdatePrivateKeyAvailability()
     {
         var enabled = _authentication.SelectedIndex == (int)SshAuthenticationMethod.PrivateKey;
-        _privateKeyPath.Enabled = enabled;
+        _privateKeyPicker.Enabled = enabled;
         _privateKeyLabel.Enabled = enabled;
+    }
+
+    private void BrowsePrivateKeyClicked(object? sender, EventArgs e)
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = AppLocalizer.Get("SelectPrivateKey"),
+            Filter = AppLocalizer.Get("PrivateKeyFileFilter"),
+            CheckFileExists = true,
+            CheckPathExists = true,
+            Multiselect = false,
+            FileName = Path.GetFileName(_privateKeyPath.Text)
+        };
+
+        var currentDirectory = Path.GetDirectoryName(_privateKeyPath.Text);
+        if (!string.IsNullOrWhiteSpace(currentDirectory) && Directory.Exists(currentDirectory))
+        {
+            dialog.InitialDirectory = currentDirectory;
+        }
+
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            _privateKeyPath.Text = dialog.FileName;
+        }
     }
 
     private void SaveClicked(object? sender, EventArgs e)
