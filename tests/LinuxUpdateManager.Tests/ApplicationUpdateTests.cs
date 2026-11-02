@@ -28,6 +28,7 @@ public sealed class ApplicationUpdateTests
         var publicKey = rsa.ExportSubjectPublicKeyInfoPem();
         var manifest = new UpdatePackageManifest("1.2.3", "v1.2.3", ApplicationUpdateService.PackageAssetName, new string('A', 64));
         var bytes = JsonSerializer.SerializeToUtf8Bytes(manifest);
+        Assert.Contains("\"version\"", System.Text.Encoding.UTF8.GetString(bytes));
         var signature = rsa.SignData(bytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
         var parsed = UpdatePackageManifest.VerifyAndParse(bytes, signature, publicKey);

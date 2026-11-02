@@ -1,14 +1,15 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace LinuxUpdateManager.Core.Updates;
 
 public sealed record UpdatePackageManifest(
-    string Version,
-    string TagName,
-    string AssetName,
-    string Sha256)
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("tagName")] string TagName,
+    [property: JsonPropertyName("assetName")] string AssetName,
+    [property: JsonPropertyName("sha256")] string Sha256)
 {
     public static UpdatePackageManifest VerifyAndParse(
         ReadOnlySpan<byte> manifestBytes,
