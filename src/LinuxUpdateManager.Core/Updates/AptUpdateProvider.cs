@@ -5,6 +5,7 @@ namespace LinuxUpdateManager.Core.Updates;
 internal sealed class AptUpdateProvider(PrivilegeElevationService privilegeElevationService) : IUpdateProvider
 {
     private static readonly TimeSpan AptTimeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan UpgradeTimeout = TimeSpan.FromHours(2);
 
     public bool CanHandle(IReadOnlyDictionary<string, string> osRelease) =>
         UpdateDetectionService.IsAptDistribution(osRelease);
@@ -37,5 +38,15 @@ internal sealed class AptUpdateProvider(PrivilegeElevationService privilegeEleva
                 : null;
 
         return new UpdateProviderResult(packages, securityCount, rebootRequired);
+    }
+
+    public Task<SshCommandResult> UpgradeAsync(
+        SshConnectionSession session,
+        ServerProfile server,
+        Action<string>? outputReceived,
+        CancellationToken cancellationToken)
+    {
+        return privilegeElevationService.ExecuteAsRootAsync(
+            session, server, PackageUpgradeCommands.Apt, cancellationToken, UpgradeTimeout, outputReceived);
     }
 }

@@ -6,7 +6,7 @@ Linux Update Manager is a Windows desktop application for managing Linux servers
 
 ## Implemented Features
 
-The current foundation includes a Windows Forms dashboard, English and Italian runtime localization, versioned application settings, server inventory management, grouping and filtering, Windows Credential Manager integration, SSH connection checks, automatic or explicitly selected privilege elevation, and APT/DNF update detection.
+The current foundation includes a Windows Forms dashboard, English and Italian runtime localization, versioned application settings, server inventory management, grouping and filtering, Windows Credential Manager integration, SSH connection checks, automatic or explicitly selected privilege elevation, APT/DNF update detection, and package upgrades after explicit confirmation.
 
 ## Architecture
 
@@ -22,7 +22,7 @@ The first-run UI language is English (`en-US`). Credentials are stored separatel
 
 ## Security
 
-The repository uses synthetic values only. Runtime configuration, logs, backup files, build output, and common key or certificate files are excluded by `.gitignore`. Inventory entries and credentials are local to the Windows user profile. SSH host keys are pinned per server after explicit first-use confirmation. The privilege check uses the fixed read-only command `id -u`. Update detection refreshes APT or DNF metadata and queries candidate packages; it does not install or upgrade packages.
+The repository uses synthetic values only. Runtime configuration, logs, backup files, build output, and common key or certificate files are excluded by `.gitignore`. Inventory entries and credentials are local to the Windows user profile. SSH host keys are pinned per server after explicit first-use confirmation. The privilege check uses the fixed read-only command `id -u`. Update detection refreshes APT or DNF metadata and queries candidate packages. Package upgrades require explicit confirmation, stream command output in the UI, and support cancellation. The app runs APT upgrade or DNF upgrade; it does not run full distribution upgrades or reboot servers.
 
 ## Build & Release
 

@@ -6,6 +6,7 @@ namespace LinuxUpdateManager.Core.Updates;
 internal sealed class DnfUpdateProvider(PrivilegeElevationService privilegeElevationService) : IUpdateProvider
 {
     private static readonly TimeSpan DnfTimeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan UpgradeTimeout = TimeSpan.FromHours(2);
     private static readonly Regex PackageLine = new(
         "^(?<nevra>\\S+)\\s+(?<candidate>\\S+)\\s+(?<repository>\\S+)\\s*$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
@@ -39,6 +40,21 @@ internal sealed class DnfUpdateProvider(PrivilegeElevationService privilegeEleva
         var rebootRequired = rebootCheck.Output.Trim().Equals("yes", StringComparison.OrdinalIgnoreCase);
         int? securityCount = packages.Count == 0 ? 0 : null;
         return new UpdateProviderResult(packages, securityCount, rebootRequired);
+    }
+
+    public Task<SshCommandResult> UpgradeAsync(
+        SshConnectionSession session,
+        ServerProfile server,
+        Action<string>? outputReceived,
+        CancellationToken cancellationToken)
+    {
+        return privilegeElevationService.ExecuteAsRootAsync(
+            session,
+            server,
+            PackageUpgradeCommands.Dnf,
+            cancellationToken,
+            UpgradeTimeout,
+            outputReceived);
     }
 
     public static IReadOnlyList<PackageUpdate> ParsePackageUpdates(string output)

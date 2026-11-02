@@ -19,6 +19,7 @@ All notable changes to this project are documented here.
 - Automatic privilege selection for root, passwordless `sudo`/`doas`, or stored `sudo`, `doas`, and `su` credentials; existing explicit methods remain available.
 - Debian and Ubuntu detection with APT, plus Fedora and RHEL-family detection with DNF, including package update details and reboot checks where supported.
 - A version number in the main window title, without commit metadata.
+- Confirmed APT and DNF package upgrades with streamed output, cancellation, and bounded multi-server operations.
 
 ### Changed
 

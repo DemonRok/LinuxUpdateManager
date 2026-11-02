@@ -114,4 +114,20 @@
   <data name="PackageColumnCandidate" xml:space="preserve"><value>Versione proposta</value></data>
   <data name="PackageColumnSecurity" xml:space="preserve"><value>Sicurezza</value></data>
   <data name="PackageColumnRepository" xml:space="preserve"><value>Repository</value></data>
+  <data name="ConfirmUpdate" xml:space="preserve"><value>Installare {0} aggiornamenti di pacchetti su {1} server? L'app non eseguirà aggiornamenti completi della distribuzione né riavvierà i server.</value></data>
+  <data name="NoUpdatesToInstall" xml:space="preserve"><value>Nessun server selezionato ha pacchetti disponibili secondo l'ultima verifica.</value></data>
+  <data name="UpdateProgressTitle" xml:space="preserve"><value>Operazione di aggiornamento pacchetti</value></data>
+  <data name="UpdateConnecting" xml:space="preserve"><value>Connessione ai server selezionati…</value></data>
+  <data name="UpdateRunning" xml:space="preserve"><value>Installazione degli aggiornamenti…</value></data>
+  <data name="UpdateCompleted" xml:space="preserve"><value>Aggiornamento dei pacchetti completato.</value></data>
+  <data name="UpdateCancelled" xml:space="preserve"><value>Aggiornamento dei pacchetti annullato.</value></data>
+  <data name="UpdateFailed" xml:space="preserve"><value>Aggiornamento dei pacchetti non riuscito.</value></data>
+  <data name="UpdateResultStale" xml:space="preserve"><value>Le informazioni sugli aggiornamenti potrebbero non essere aggiornate. Esegui di nuovo la verifica.</value></data>
+  <data name="OperationCancelling" xml:space="preserve"><value>Annullamento richiesto. Attendo l'arresto dei comandi remoti…</value></data>
+  <data name="OperationSummary" xml:space="preserve"><value>Completati: {0} · Non riusciti: {1} · Annullati: {2}</value></data>
+  <data name="UpdateServerConnecting" xml:space="preserve"><value>[{0}] Connessione a {1}…</value></data>
+  <data name="UpdateServerRunning" xml:space="preserve"><value>[{0}] Installazione di {1} aggiornamenti di pacchetti…</value></data>
+  <data name="UpdateServerCompleted" xml:space="preserve"><value>[{0}] Aggiornamento dei pacchetti completato.</value></data>
+  <data name="UpdateServerCancelled" xml:space="preserve"><value>[{0}] Operazione annullata.</value></data>
+  <data name="UpdateServerFailed" xml:space="preserve"><value>[{0}] Operazione non riuscita: {1}</value></data>
 </root>

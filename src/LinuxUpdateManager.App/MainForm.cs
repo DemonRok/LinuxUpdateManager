@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using LinuxUpdateManager.App.Localization;
 using LinuxUpdateManager.Core.Configuration;
 using LinuxUpdateManager.Core.Security;
@@ -15,8 +16,11 @@ internal sealed class MainForm : Form
     private readonly SshConnectionService _sshConnectionService;
     private readonly PrivilegeElevationService _privilegeElevationService;
     private readonly UpdateDetectionService _updateDetectionService;
+    private readonly UpdateExecutionService _updateExecutionService;
     private readonly ServerInventoryDocument _inventory;
-    private readonly Dictionary<Guid, UpdateCheckResult> _latestUpdateResults = [];
+    private readonly ConcurrentDictionary<Guid, UpdateCheckResult> _latestUpdateResults = new();
+    private readonly ConcurrentDictionary<Guid, byte> _staleUpdateResults = new();
+    private readonly SemaphoreSlim _inventorySaveGate = new(1, 1);
     private readonly ComboBox _languageSelector = new();
     private readonly Label _languageLabel = new();
     private readonly Label _title = new();
@@ -33,6 +37,8 @@ internal sealed class MainForm : Form
     private readonly Button _testConnection = new();
     private readonly Button _testPrivileges = new();
     private readonly Button _checkUpdates = new();
+    private readonly Button _updateNow = new();
+    private bool _operationInProgress;
 
     public MainForm(
         AppConfiguration configuration,
@@ -48,6 +54,7 @@ internal sealed class MainForm : Form
         _sshConnectionService = new SshConnectionService(credentialService);
         _privilegeElevationService = new PrivilegeElevationService(credentialService);
         _updateDetectionService = new UpdateDetectionService(_privilegeElevationService);
+        _updateExecutionService = new UpdateExecutionService(_privilegeElevationService);
         _inventory = inventory;
 
         Text = WindowTitle();
@@ -72,7 +79,7 @@ internal sealed class MainForm : Form
         };
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
 
@@ -106,7 +113,7 @@ internal sealed class MainForm : Form
 
         _toolbarActions.Dock = DockStyle.Fill;
         _toolbarActions.FlowDirection = FlowDirection.LeftToRight;
-        _toolbarActions.WrapContents = false;
+        _toolbarActions.WrapContents = true;
         _toolbarActions.AutoScroll = false;
         _toolbarActions.Margin = Padding.Empty;
 
@@ -117,6 +124,7 @@ internal sealed class MainForm : Form
         ConfigureButton(_testConnection, "TestConnection");
         ConfigureButton(_testPrivileges, "TestPrivileges");
         ConfigureButton(_checkUpdates, "CheckForUpdates");
+        ConfigureButton(_updateNow, "UpdateNow");
         _search.Width = 190;
         _search.Margin = new Padding(0, 6, 4, 3);
         _groupFilter.Width = 150;
@@ -129,6 +137,7 @@ internal sealed class MainForm : Form
         _toolbarActions.Controls.Add(_testConnection);
         _toolbarActions.Controls.Add(_testPrivileges);
         _toolbarActions.Controls.Add(_checkUpdates);
+        _toolbarActions.Controls.Add(_updateNow);
         _toolbarActions.Controls.Add(_search);
         _toolbarActions.Controls.Add(_groupFilter);
 
@@ -139,7 +148,7 @@ internal sealed class MainForm : Form
         _servers.AllowUserToResizeRows = false;
         _servers.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
         _servers.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-        _servers.MultiSelect = false;
+        _servers.MultiSelect = true;
         _servers.RowHeadersVisible = false;
         _servers.BackgroundColor = SystemColors.Window;
 
@@ -175,6 +184,7 @@ internal sealed class MainForm : Form
         _testConnection.Click += TestConnectionClicked;
         _testPrivileges.Click += TestPrivilegesClicked;
         _checkUpdates.Click += CheckUpdatesClicked;
+        _updateNow.Click += UpdateNowClicked;
         _servers.CellDoubleClick += ServerCellDoubleClicked;
     }
 
@@ -194,6 +204,7 @@ internal sealed class MainForm : Form
         ConfigureButton(_testConnection, "TestConnection");
         ConfigureButton(_testPrivileges, "TestPrivileges");
         ConfigureButton(_checkUpdates, "CheckForUpdates");
+        ConfigureButton(_updateNow, "UpdateNow");
 
         var preferredIndex = _configuration.Language == "it-IT" ? 1 : 0;
         if (_languageSelector.SelectedIndex != preferredIndex)
@@ -254,7 +265,11 @@ internal sealed class MainForm : Form
                 result is null ? "—" : AppLocalizer.Get(result.RebootRequired ? "Yes" : "No"),
                 result?.CheckedAt.ToLocalTime().ToString("g", AppLocalizer.CurrentCulture)
                     ?? AppLocalizer.Get("StatusNotChecked"),
-                result is null ? AppLocalizer.Get("StatusIdle") : FormatUpdateSummary(result));
+                result is null
+                    ? AppLocalizer.Get("StatusIdle")
+                    : _staleUpdateResults.ContainsKey(server.Id)
+                        ? AppLocalizer.Get("UpdateResultStale")
+                        : FormatUpdateSummary(result));
             _servers.Rows[rowIndex].Tag = server.Id;
         }
 
@@ -374,25 +389,35 @@ internal sealed class MainForm : Form
         }
     }
 
-    private ServerProfile? SelectedServer()
+    private List<ServerProfile> SelectedServers()
     {
-        if (_servers.SelectedRows.Count == 0 || _servers.SelectedRows[0].Tag is not Guid id)
-        {
-            return null;
-        }
-
-        return _inventory.Servers.FirstOrDefault(server => server.Id == id);
+        var selectedIds = _servers.SelectedRows.Cast<DataGridViewRow>()
+            .Select(row => row.Tag)
+            .OfType<Guid>()
+            .ToHashSet();
+        return _inventory.Servers.Where(server => selectedIds.Contains(server.Id)).ToList();
     }
+
+    private ServerProfile? SelectedServer() => SelectedServers().FirstOrDefault();
 
     private void UpdateCommandButtons()
     {
-        var hasSelection = SelectedServer() is not null;
-        _editServer.Enabled = hasSelection;
-        _removeServer.Enabled = hasSelection;
-        _manageCredentials.Enabled = hasSelection;
-        _testConnection.Enabled = hasSelection;
-        _testPrivileges.Enabled = hasSelection;
+        var selected = SelectedServers();
+        var hasOneSelection = !_operationInProgress && selected.Count == 1;
+        var hasSelection = !_operationInProgress && selected.Count > 0;
+
+        _addServer.Enabled = !_operationInProgress;
+        _editServer.Enabled = hasOneSelection;
+        _removeServer.Enabled = hasOneSelection;
+        _manageCredentials.Enabled = hasOneSelection;
+        _testConnection.Enabled = hasOneSelection;
+        _testPrivileges.Enabled = hasOneSelection;
         _checkUpdates.Enabled = hasSelection;
+        _updateNow.Enabled = hasSelection && selected.Any(server =>
+            _latestUpdateResults.TryGetValue(server.Id, out var result) &&
+            result.Packages.Count > 0 &&
+            !_staleUpdateResults.ContainsKey(server.Id));
+        _servers.Enabled = !_operationInProgress;
     }
 
     private async void TestConnectionClicked(object? sender, EventArgs e)
@@ -421,14 +446,51 @@ internal sealed class MainForm : Form
 
     private async void CheckUpdatesClicked(object? sender, EventArgs e)
     {
-        var selected = SelectedServer();
-        if (selected is null)
+        var selected = SelectedServers();
+        if (selected.Count == 0)
         {
             ShowSelectServerMessage();
             return;
         }
 
-        await RunUpdateCheckAsync(selected);
+        if (selected.Count == 1)
+        {
+            await RunUpdateCheckAsync(selected[0]);
+            return;
+        }
+
+        await RunMultipleUpdateChecksAsync(selected);
+    }
+
+    private async void UpdateNowClicked(object? sender, EventArgs e)
+    {
+        if (_operationInProgress)
+        {
+            return;
+        }
+
+        var selected = SelectedServers();
+        var targets = selected.Where(server =>
+                _latestUpdateResults.TryGetValue(server.Id, out var result) &&
+                result.Packages.Count > 0 &&
+                !_staleUpdateResults.ContainsKey(server.Id))
+            .ToList();
+        if (targets.Count == 0)
+        {
+            MessageBox.Show(this, AppLocalizer.Get("NoUpdatesToInstall"), AppLocalizer.Get("AppTitle"),
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var packageCount = targets.Sum(server => _latestUpdateResults[server.Id].Packages.Count);
+        var confirmation = string.Format(AppLocalizer.Get("ConfirmUpdate"), packageCount, targets.Count);
+        if (MessageBox.Show(this, confirmation, AppLocalizer.Get("AppTitle"),
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+        {
+            return;
+        }
+
+        await RunPackageUpdatesAsync(targets);
     }
 
     private void ServerCellDoubleClicked(object? sender, DataGridViewCellEventArgs e)
@@ -451,9 +513,8 @@ internal sealed class MainForm : Form
 
     private async Task RunUpdateCheckAsync(ServerProfile server)
     {
-        _testConnection.Enabled = false;
-        _testPrivileges.Enabled = false;
-        _checkUpdates.Enabled = false;
+        SetOperationInProgress(true);
+        _staleUpdateResults.TryAdd(server.Id, 0);
         SetServerStatus(server.Id, AppLocalizer.Get("StatusConnecting"), AppLocalizer.Get("StatusChecking"));
         _status.Text = AppLocalizer.Get("UpdateCheckInProgress");
         var connected = false;
@@ -471,6 +532,7 @@ internal sealed class MainForm : Form
 
             var result = await _updateDetectionService.CheckAsync(session, server);
             _latestUpdateResults[server.Id] = result;
+            _staleUpdateResults.TryRemove(server.Id, out _);
             RefreshRows(server.Id);
             RefreshGroupFilter();
             ApplyFilters();
@@ -488,14 +550,262 @@ internal sealed class MainForm : Form
         }
         finally
         {
-            UpdateCommandButtons();
+            SetOperationInProgress(false);
         }
     }
 
+    private async Task RunMultipleUpdateChecksAsync(IReadOnlyList<ServerProfile> servers)
+    {
+        SetOperationInProgress(true);
+        using var progress = new UpdateExecutionForm();
+        progress.SetStatus(AppLocalizer.Get("UpdateCheckInProgress"));
+        var connectedServers = new ConcurrentDictionary<Guid, byte>();
+
+        progress.Shown += async (_, _) =>
+        {
+            try
+            {
+                var outcomes = await RunServerOperationsAsync(
+                    servers,
+                    async (server, cancellationToken) =>
+                    {
+                        progress.SetStatus(AppLocalizer.Get("UpdateCheckInProgress"));
+                        progress.AppendOutput(string.Format(
+                            AppLocalizer.Get("UpdateServerConnecting"), server.Name, server.Host) + Environment.NewLine);
+                        _staleUpdateResults.TryAdd(server.Id, 0);
+                        SetServerStatusFromAnyThread(
+                            server.Id, AppLocalizer.Get("StatusConnecting"), AppLocalizer.Get("StatusChecking"));
+
+                        using var session = await _sshConnectionService.ConnectAsync(
+                            server, ConfirmUnknownHostKey, cancellationToken);
+                        connectedServers.TryAdd(server.Id, 0);
+                        if (session.NewlyTrustedFingerprint is { Length: > 0 } fingerprint &&
+                            !await InvokeOnUiAsync(() => SaveTrustedFingerprintAsync(server, fingerprint)))
+                        {
+                            throw new IOException("The trusted host key could not be saved.");
+                        }
+
+                        var result = await _updateDetectionService.CheckAsync(session, server, cancellationToken);
+                        _latestUpdateResults[server.Id] = result;
+                        _staleUpdateResults.TryRemove(server.Id, out _);
+                        await InvokeOnUiAsync(() => RefreshServerUpdateResult(server.Id, result));
+                        progress.AppendOutput(string.Format(
+                            AppLocalizer.Get("UpdateCheckSucceeded"), result.Packages.Count) +
+                            $" [{server.Name}]{Environment.NewLine}");
+                    },
+                    progress.CancellationToken,
+                    outcome => AppendOperationOutcome(progress, outcome));
+
+                var summary = FormatOperationSummary(outcomes);
+                progress.Complete(summary);
+                _status.Text = summary;
+                ResizeWindowForLocalizedContent();
+                foreach (var outcome in outcomes)
+                {
+                    var connectionStatus = connectedServers.ContainsKey(outcome.Server.Id)
+                        ? AppLocalizer.Get("StatusConnected")
+                        : AppLocalizer.Get("StatusNotConnected");
+                    var operationStatus = outcome.Result == ServerOperationResult.Completed &&
+                                          _latestUpdateResults.TryGetValue(outcome.Server.Id, out var result)
+                        ? FormatUpdateSummary(result)
+                        : OperationStatus(outcome);
+                    SetServerStatusFromAnyThread(
+                        outcome.Server.Id, connectionStatus, operationStatus);
+                }
+            }
+            catch (Exception exception)
+            {
+                progress.AppendOutput(exception.Message + Environment.NewLine);
+                progress.Complete(AppLocalizer.Get("UpdateCheckFailed"));
+                _status.Text = AppLocalizer.Get("UpdateCheckFailed");
+            }
+        };
+
+        progress.ShowDialog(this);
+        SetOperationInProgress(false);
+    }
+
+    private async Task RunPackageUpdatesAsync(IReadOnlyList<ServerProfile> servers)
+    {
+        SetOperationInProgress(true);
+        using var progress = new UpdateExecutionForm();
+        progress.SetStatus(AppLocalizer.Get("UpdateRunning"));
+        var connectedServers = new ConcurrentDictionary<Guid, byte>();
+        var attemptedServers = new ConcurrentDictionary<Guid, byte>();
+
+        progress.Shown += async (_, _) =>
+        {
+            try
+            {
+                var outcomes = await RunServerOperationsAsync(
+                    servers,
+                    async (server, cancellationToken) =>
+                    {
+                        var updateCount = _latestUpdateResults.TryGetValue(server.Id, out var updateResult)
+                            ? updateResult.Packages.Count
+                            : 0;
+                        progress.SetStatus(string.Format(AppLocalizer.Get("UpdateServerRunning"), server.Name, updateCount));
+                        progress.AppendOutput(string.Format(
+                            AppLocalizer.Get("UpdateServerConnecting"), server.Name, server.Host) + Environment.NewLine);
+                        SetServerStatusFromAnyThread(
+                            server.Id, AppLocalizer.Get("StatusConnecting"), AppLocalizer.Get("StatusChecking"));
+
+                        using var session = await _sshConnectionService.ConnectAsync(
+                            server, ConfirmUnknownHostKey, cancellationToken);
+                        connectedServers.TryAdd(server.Id, 0);
+                        if (session.NewlyTrustedFingerprint is { Length: > 0 } fingerprint &&
+                            !await InvokeOnUiAsync(() => SaveTrustedFingerprintAsync(server, fingerprint)))
+                        {
+                            throw new IOException("The trusted host key could not be saved.");
+                        }
+
+                        if (updateCount == 0)
+                        {
+                            throw new InvalidOperationException("No package updates are available for this server.");
+                        }
+
+                        attemptedServers.TryAdd(server.Id, 0);
+                        SetServerStatusFromAnyThread(
+                            server.Id, AppLocalizer.Get("StatusConnected"), AppLocalizer.Get("UpdateRunning"));
+                        progress.AppendOutput(string.Format(
+                            AppLocalizer.Get("UpdateServerRunning"), server.Name, updateCount) + Environment.NewLine);
+                        await _updateExecutionService.UpgradeAsync(
+                            session,
+                            server,
+                            output => progress.AppendOutput($"[{server.Name}] {output}"),
+                            cancellationToken);
+                        progress.AppendOutput(
+                            string.Format(AppLocalizer.Get("UpdateServerCompleted"), server.Name) +
+                            Environment.NewLine);
+                    },
+                    progress.CancellationToken,
+                    outcome => AppendOperationOutcome(progress, outcome));
+
+                foreach (var serverId in attemptedServers.Keys)
+                {
+                    _staleUpdateResults.TryAdd(serverId, 0);
+                }
+
+                var summary = FormatOperationSummary(outcomes);
+                progress.Complete(summary);
+                _status.Text = summary;
+                foreach (var outcome in outcomes)
+                {
+                    var connectionStatus = connectedServers.ContainsKey(outcome.Server.Id)
+                        ? AppLocalizer.Get("StatusConnected")
+                        : AppLocalizer.Get("StatusNotConnected");
+                    SetServerStatusFromAnyThread(
+                        outcome.Server.Id, connectionStatus, OperationStatus(outcome));
+                }
+            }
+            catch (Exception exception)
+            {
+                progress.AppendOutput(exception.Message + Environment.NewLine);
+                progress.Complete(AppLocalizer.Get("UpdateFailed"));
+                _status.Text = AppLocalizer.Get("UpdateFailed");
+            }
+        };
+
+        progress.ShowDialog(this);
+        SetOperationInProgress(false);
+    }
+
+    private async Task<IReadOnlyList<ServerOperationOutcome>> RunServerOperationsAsync(
+        IReadOnlyList<ServerProfile> servers,
+        Func<ServerProfile, CancellationToken, Task> operation,
+        CancellationToken cancellationToken,
+        Action<ServerOperationOutcome>? outcomeReceived = null)
+    {
+        var concurrency = Math.Clamp(_configuration.MaximumConcurrentOperations, 1, 32);
+        using var gate = new SemaphoreSlim(concurrency, concurrency);
+        var outcomes = new ConcurrentDictionary<Guid, ServerOperationOutcome>();
+        var tasks = servers.Select(async server =>
+        {
+            var enteredGate = false;
+            try
+            {
+                await gate.WaitAsync(cancellationToken);
+                enteredGate = true;
+                cancellationToken.ThrowIfCancellationRequested();
+                await operation(server, cancellationToken);
+                outcomes[server.Id] = new ServerOperationOutcome(server, ServerOperationResult.Completed, null);
+            }
+            catch (OperationCanceledException)
+            {
+                outcomes[server.Id] = new ServerOperationOutcome(server, ServerOperationResult.Cancelled, null);
+            }
+            catch (Exception exception)
+            {
+                outcomes[server.Id] = new ServerOperationOutcome(server, ServerOperationResult.Failed, exception.Message);
+            }
+            finally
+            {
+                if (enteredGate)
+                {
+                    gate.Release();
+                }
+
+                if (outcomes.TryGetValue(server.Id, out var outcome))
+                {
+                    try
+                    {
+                        outcomeReceived?.Invoke(outcome);
+                    }
+                    catch (Exception)
+                    {
+                        // Progress reporting must not stop operations on other servers.
+                    }
+                }
+            }
+        }).ToArray();
+
+        await Task.WhenAll(tasks);
+        return servers.Select(server => outcomes[server.Id]).ToArray();
+    }
+
+    private static void AppendOperationOutcome(UpdateExecutionForm progress, ServerOperationOutcome outcome)
+    {
+        if (outcome.Result == ServerOperationResult.Completed)
+        {
+            return;
+        }
+
+        var message = outcome.Result == ServerOperationResult.Cancelled
+            ? string.Format(AppLocalizer.Get("UpdateServerCancelled"), outcome.Server.Name)
+            : string.Format(AppLocalizer.Get("UpdateServerFailed"), outcome.Server.Name, outcome.Error ?? string.Empty);
+        progress.AppendOutput(message + Environment.NewLine);
+    }
+
+    private static string FormatOperationSummary(IReadOnlyList<ServerOperationOutcome> outcomes) =>
+        string.Format(
+            AppLocalizer.Get("OperationSummary"),
+            outcomes.Count(outcome => outcome.Result == ServerOperationResult.Completed),
+            outcomes.Count(outcome => outcome.Result == ServerOperationResult.Failed),
+            outcomes.Count(outcome => outcome.Result == ServerOperationResult.Cancelled));
+
+    private static string OperationStatus(ServerOperationOutcome outcome) =>
+        outcome.Result switch
+        {
+            ServerOperationResult.Completed => AppLocalizer.Get("UpdateResultStale"),
+            ServerOperationResult.Cancelled => AppLocalizer.Get("UpdateCancelled"),
+            _ => AppLocalizer.Get("StatusFailed")
+        };
+
+    private enum ServerOperationResult
+    {
+        Completed,
+        Failed,
+        Cancelled
+    }
+
+    private sealed record ServerOperationOutcome(
+        ServerProfile Server,
+        ServerOperationResult Result,
+        string? Error);
+
     private async Task RunSshCheckAsync(ServerProfile server, bool testPrivileges)
     {
-        _testConnection.Enabled = false;
-        _testPrivileges.Enabled = false;
+        SetOperationInProgress(true);
         SetServerStatus(server.Id, AppLocalizer.Get("StatusConnecting"), AppLocalizer.Get("StatusChecking"));
         _status.Text = AppLocalizer.Get(testPrivileges ? "PrivilegeCheckInProgress" : "ConnectionCheckInProgress");
 
@@ -546,7 +856,7 @@ internal sealed class MainForm : Form
         }
         finally
         {
-            UpdateCommandButtons();
+            SetOperationInProgress(false);
         }
     }
 
@@ -565,16 +875,32 @@ internal sealed class MainForm : Form
 
     private async Task<bool> SaveTrustedFingerprintAsync(ServerProfile server, string fingerprint)
     {
-        var updatedServer = CopyServer(server);
-        updatedServer.TrustedHostKeyFingerprint = fingerprint;
-        var updatedServers = _inventory.Servers.Select(item => item.Id == server.Id ? updatedServer : item).ToList();
-        if (!await SaveInventoryAsync(updatedServers, server.Id))
+        await _inventorySaveGate.WaitAsync();
+        try
         {
-            return false;
-        }
+            var currentServer = _inventory.Servers.FirstOrDefault(item => item.Id == server.Id);
+            if (currentServer is null)
+            {
+                return false;
+            }
 
-        _status.Text = AppLocalizer.Get("HostKeySaved");
-        return true;
+            var updatedServer = CopyServer(currentServer);
+            updatedServer.TrustedHostKeyFingerprint = fingerprint;
+            var updatedServers = _inventory.Servers
+                .Select(item => item.Id == server.Id ? updatedServer : item)
+                .ToList();
+            if (!await SaveInventoryCoreAsync(updatedServers, server.Id))
+            {
+                return false;
+            }
+
+            _status.Text = AppLocalizer.Get("HostKeySaved");
+            return true;
+        }
+        finally
+        {
+            _inventorySaveGate.Release();
+        }
     }
 
     private static ServerProfile CopyServer(ServerProfile source) => new()
@@ -595,6 +921,110 @@ internal sealed class MainForm : Form
 
     private static string FormatFingerprint(string fingerprint) => $"SHA256:{fingerprint}";
 
+    private void SetOperationInProgress(bool inProgress)
+    {
+        _operationInProgress = inProgress;
+        UpdateCommandButtons();
+    }
+
+    private void SetServerStatusFromAnyThread(Guid serverId, string connectionStatus, string operationStatus)
+    {
+        if (IsDisposed || !IsHandleCreated)
+        {
+            return;
+        }
+
+        if (InvokeRequired)
+        {
+            try
+            {
+                BeginInvoke(new Action(() => SetServerStatus(serverId, connectionStatus, operationStatus)));
+            }
+            catch (InvalidOperationException)
+            {
+                // The form may be closing while a remote operation completes.
+            }
+
+            return;
+        }
+
+        SetServerStatus(serverId, connectionStatus, operationStatus);
+    }
+
+    private Task<T> InvokeOnUiAsync<T>(Func<Task<T>> action)
+    {
+        if (!InvokeRequired)
+        {
+            return action();
+        }
+
+        var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (IsDisposed || !IsHandleCreated)
+        {
+            completion.TrySetException(new ObjectDisposedException(nameof(MainForm)));
+            return completion.Task;
+        }
+
+        try
+        {
+            BeginInvoke(new Action(async () =>
+            {
+                try
+                {
+                    completion.TrySetResult(await action());
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            }));
+        }
+        catch (InvalidOperationException exception)
+        {
+            completion.TrySetException(exception);
+        }
+
+        return completion.Task;
+    }
+
+    private Task InvokeOnUiAsync(Action action)
+    {
+        if (!InvokeRequired)
+        {
+            action();
+            return Task.CompletedTask;
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (IsDisposed || !IsHandleCreated)
+        {
+            completion.TrySetException(new ObjectDisposedException(nameof(MainForm)));
+            return completion.Task;
+        }
+
+        try
+        {
+            BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    action();
+                    completion.TrySetResult();
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            }));
+        }
+        catch (InvalidOperationException exception)
+        {
+            completion.TrySetException(exception);
+        }
+
+        return completion.Task;
+    }
+
     private void SetServerStatus(Guid serverId, string connectionStatus, string operationStatus)
     {
         var row = _servers.Rows.Cast<DataGridViewRow>().FirstOrDefault(candidate =>
@@ -606,6 +1036,25 @@ internal sealed class MainForm : Form
 
         row.Cells["Connection"].Value = connectionStatus;
         row.Cells["Operation"].Value = operationStatus;
+    }
+
+    private void RefreshServerUpdateResult(Guid serverId, UpdateCheckResult result)
+    {
+        var row = _servers.Rows.Cast<DataGridViewRow>()
+            .FirstOrDefault(candidate => candidate.Tag is Guid id && id == serverId);
+        if (row is null)
+        {
+            return;
+        }
+
+        row.Cells["Distribution"].Value = result.Distribution;
+        row.Cells["Version"].Value = result.Version;
+        row.Cells["Connection"].Value = AppLocalizer.Get("StatusConnected");
+        row.Cells["Updates"].Value = result.Packages.Count.ToString(AppLocalizer.CurrentCulture);
+        row.Cells["Security"].Value = FormatSecurityCount(result.SecurityUpdateCount);
+        row.Cells["Reboot"].Value = AppLocalizer.Get(result.RebootRequired ? "Yes" : "No");
+        row.Cells["Checked"].Value = result.CheckedAt.ToLocalTime().ToString("g", AppLocalizer.CurrentCulture);
+        row.Cells["Operation"].Value = FormatUpdateSummary(result);
     }
 
     private async void AddServerClicked(object? sender, EventArgs e)
@@ -620,7 +1069,7 @@ internal sealed class MainForm : Form
         updatedServers.Add(editor.Profile);
         if (await SaveInventoryAsync(updatedServers, editor.Profile.Id))
         {
-            _latestUpdateResults.Remove(editor.Profile.Id);
+            _latestUpdateResults.TryRemove(editor.Profile.Id, out _);
             RefreshRows(editor.Profile.Id);
             ApplyFilters();
             _status.Text = AppLocalizer.Get("ServerSaved");
@@ -647,7 +1096,7 @@ internal sealed class MainForm : Form
         updatedServers[index] = editor.Profile;
         if (await SaveInventoryAsync(updatedServers, editor.Profile.Id))
         {
-            _latestUpdateResults.Remove(editor.Profile.Id);
+            _latestUpdateResults.TryRemove(editor.Profile.Id, out _);
             RefreshRows(editor.Profile.Id);
             ApplyFilters();
             _status.Text = AppLocalizer.Get("ServerSaved");
@@ -675,7 +1124,7 @@ internal sealed class MainForm : Form
             return;
         }
 
-        _latestUpdateResults.Remove(selected.Id);
+        _latestUpdateResults.TryRemove(selected.Id, out _);
 
         var cleanupFailed = false;
         foreach (var kind in Enum.GetValues<CredentialKind>())
@@ -709,6 +1158,19 @@ internal sealed class MainForm : Form
     }
 
     private async Task<bool> SaveInventoryAsync(List<ServerProfile> updatedServers, Guid? selectServerId = null)
+    {
+        await _inventorySaveGate.WaitAsync();
+        try
+        {
+            return await SaveInventoryCoreAsync(updatedServers, selectServerId);
+        }
+        finally
+        {
+            _inventorySaveGate.Release();
+        }
+    }
+
+    private async Task<bool> SaveInventoryCoreAsync(List<ServerProfile> updatedServers, Guid? selectServerId)
     {
         var updatedInventory = new ServerInventoryDocument
         {

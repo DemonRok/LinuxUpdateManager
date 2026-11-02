@@ -10,6 +10,12 @@ internal interface IUpdateProvider
         SshConnectionSession session,
         ServerProfile server,
         CancellationToken cancellationToken);
+
+    Task<SshCommandResult> UpgradeAsync(
+        SshConnectionSession session,
+        ServerProfile server,
+        Action<string>? outputReceived,
+        CancellationToken cancellationToken);
 }
 
 internal sealed record UpdateProviderResult(

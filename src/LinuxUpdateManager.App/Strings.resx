@@ -114,4 +114,20 @@
   <data name="PackageColumnCandidate" xml:space="preserve"><value>Candidate version</value></data>
   <data name="PackageColumnSecurity" xml:space="preserve"><value>Security</value></data>
   <data name="PackageColumnRepository" xml:space="preserve"><value>Repository</value></data>
+  <data name="ConfirmUpdate" xml:space="preserve"><value>Install {0} package update(s) on {1} server(s)? The app will not run distribution upgrades or reboot servers.</value></data>
+  <data name="NoUpdatesToInstall" xml:space="preserve"><value>No selected server has packages available from its latest update check.</value></data>
+  <data name="UpdateProgressTitle" xml:space="preserve"><value>Package update operation</value></data>
+  <data name="UpdateConnecting" xml:space="preserve"><value>Connecting to selected servers…</value></data>
+  <data name="UpdateRunning" xml:space="preserve"><value>Installing package updates…</value></data>
+  <data name="UpdateCompleted" xml:space="preserve"><value>Package update completed.</value></data>
+  <data name="UpdateCancelled" xml:space="preserve"><value>Package update cancelled.</value></data>
+  <data name="UpdateFailed" xml:space="preserve"><value>Package update failed.</value></data>
+  <data name="UpdateResultStale" xml:space="preserve"><value>Update information may be outdated. Check for updates again.</value></data>
+  <data name="OperationCancelling" xml:space="preserve"><value>Cancellation requested. Waiting for remote commands to stop…</value></data>
+  <data name="OperationSummary" xml:space="preserve"><value>Completed: {0} · Failed: {1} · Cancelled: {2}</value></data>
+  <data name="UpdateServerConnecting" xml:space="preserve"><value>[{0}] Connecting to {1}…</value></data>
+  <data name="UpdateServerRunning" xml:space="preserve"><value>[{0}] Installing {1} package update(s)…</value></data>
+  <data name="UpdateServerCompleted" xml:space="preserve"><value>[{0}] Package update completed.</value></data>
+  <data name="UpdateServerCancelled" xml:space="preserve"><value>[{0}] Operation cancelled.</value></data>
+  <data name="UpdateServerFailed" xml:space="preserve"><value>[{0}] Operation failed: {1}</value></data>
 </root>

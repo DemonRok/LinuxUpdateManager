@@ -2,6 +2,7 @@ using LinuxUpdateManager.Core.Security;
 using Renci.SshNet;
 using Renci.SshNet.Common;
 using Renci.SshNet.Security;
+using System.Text;
 
 namespace LinuxUpdateManager.Core.Servers;
 
@@ -174,6 +175,97 @@ public sealed class SshConnectionSession(SshClient client, string? newlyTrustedF
 
         await executeTask;
         return new SshCommandResult(command.Result, command.Error, command.ExitStatus ?? -1);
+    }
+
+    public async Task<SshCommandResult> ExecuteStreamingAsync(
+        string commandText,
+        string? standardInput,
+        Action<string>? outputReceived,
+        CancellationToken cancellationToken = default,
+        TimeSpan? commandTimeout = null)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        using var command = client.CreateCommand(commandText);
+        command.CommandTimeout = commandTimeout ?? TimeSpan.FromSeconds(30);
+
+        var output = new StringBuilder();
+        var error = new StringBuilder();
+        var executeTask = command.ExecuteAsync(cancellationToken);
+        var outputTask = ReadOutputAsync(command.OutputStream, output, outputReceived, cancellationToken);
+        var errorTask = ReadOutputAsync(command.ExtendedOutputStream, error, outputReceived, cancellationToken);
+
+        try
+        {
+            if (standardInput is not null)
+            {
+                using var input = command.CreateInputStream();
+                var bytes = Encoding.UTF8.GetBytes(standardInput);
+                try
+                {
+                    await input.WriteAsync(bytes, cancellationToken);
+                    await input.FlushAsync(cancellationToken);
+                }
+                finally
+                {
+                    System.Security.Cryptography.CryptographicOperations.ZeroMemory(bytes);
+                }
+            }
+
+            await executeTask;
+            await Task.WhenAll(outputTask, errorTask);
+            return new SshCommandResult(output.ToString(), error.ToString(), command.ExitStatus ?? -1);
+        }
+        catch
+        {
+            try
+            {
+                command.CancelAsync(forceKill: true, millisecondsTimeout: 1000);
+            }
+            catch (Exception)
+            {
+                // The remote channel may already be closed.
+            }
+
+            try
+            {
+                await Task.WhenAll(outputTask, errorTask).WaitAsync(TimeSpan.FromSeconds(2));
+            }
+            catch (Exception)
+            {
+                // The original execution error is more useful than a stream-drain error.
+            }
+
+            throw;
+        }
+    }
+
+    private static async Task ReadOutputAsync(
+        Stream stream,
+        StringBuilder destination,
+        Action<string>? outputReceived,
+        CancellationToken cancellationToken)
+    {
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, 4096, leaveOpen: true);
+        var buffer = new char[2048];
+        while (true)
+        {
+            var count = await reader.ReadAsync(buffer.AsMemory(), cancellationToken);
+            if (count == 0)
+            {
+                return;
+            }
+
+            var chunk = new string(buffer, 0, count);
+            destination.Append(chunk);
+            try
+            {
+                outputReceived?.Invoke(chunk);
+            }
+            catch (Exception)
+            {
+                // A UI callback must not interrupt a remote package operation.
+            }
+        }
     }
 
     private bool _disposed;

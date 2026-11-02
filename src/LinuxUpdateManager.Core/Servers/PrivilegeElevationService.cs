@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Text;
 using LinuxUpdateManager.Core.Security;
 using Renci.SshNet;
 
@@ -20,7 +21,8 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
         ServerProfile server,
         string command,
         CancellationToken cancellationToken = default,
-        TimeSpan? commandTimeout = null)
+        TimeSpan? commandTimeout = null,
+        Action<string>? outputReceived = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(server);
@@ -28,13 +30,13 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
 
         if (server.PrivilegeElevationMethod == PrivilegeElevationMethod.Auto)
         {
-            return await ExecuteAutomaticallyAsync(session, server, command, cancellationToken, commandTimeout);
+            return await ExecuteAutomaticallyAsync(session, server, command, cancellationToken, commandTimeout, outputReceived);
         }
 
         switch (server.PrivilegeElevationMethod)
         {
             case PrivilegeElevationMethod.DirectRoot:
-                return await session.ExecuteAsync(command, cancellationToken: cancellationToken, commandTimeout: commandTimeout);
+                return await ExecuteCommandAsync(session, command, null, cancellationToken, commandTimeout, outputReceived);
 
             case PrivilegeElevationMethod.Sudo:
             case PrivilegeElevationMethod.SudoInteractive:
@@ -48,11 +50,13 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
                 var elevatedCommand = server.PrivilegeElevationMethod == PrivilegeElevationMethod.Sudo
                     ? $"sudo -S -p '' -- sh -c {QuoteShellArgument(command)}"
                     : $"sudo -S -p '' -i -- sh -c {QuoteShellArgument(command)}";
-                return await session.ExecuteAsync(
+                return await ExecuteCommandAsync(
+                    session,
                     elevatedCommand,
                     password + "\n",
                     cancellationToken,
-                    commandTimeout);
+                    commandTimeout,
+                    outputReceived);
             }
 
             case PrivilegeElevationMethod.Su:
@@ -63,7 +67,7 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
                     throw new InvalidOperationException("The root password is not stored.");
                 }
 
-                return await ExecuteWithSuAsync(session, command, rootPassword, cancellationToken, commandTimeout);
+                return await ExecuteWithSuAsync(session, command, rootPassword, cancellationToken, commandTimeout, outputReceived);
             }
 
             default:
@@ -76,7 +80,8 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
         ServerProfile server,
         string command,
         CancellationToken cancellationToken,
-        TimeSpan? commandTimeout)
+        TimeSpan? commandTimeout,
+        Action<string>? outputReceived)
     {
         var identity = await session.ExecuteAsync("id -u", cancellationToken: cancellationToken);
         if (identity.ExitStatus != 0)
@@ -86,7 +91,7 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
 
         if (identity.Output.Trim() == "0")
         {
-            return await session.ExecuteAsync(command, cancellationToken: cancellationToken, commandTimeout: commandTimeout);
+            return await ExecuteCommandAsync(session, command, null, cancellationToken, commandTimeout, outputReceived);
         }
 
         var hasSudo = await HasCommandAsync(session, "sudo", cancellationToken);
@@ -95,17 +100,20 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
             var passwordless = await session.ExecuteAsync("sudo -n true", cancellationToken: cancellationToken);
             if (passwordless.ExitStatus == 0)
             {
-                return await session.ExecuteAsync(
+                return await ExecuteCommandAsync(
+                    session,
                     $"sudo -n -- sh -c {QuoteShellArgument(command)}",
-                    cancellationToken: cancellationToken,
-                    commandTimeout: commandTimeout);
+                    null,
+                    cancellationToken,
+                    commandTimeout,
+                    outputReceived);
             }
 
             var sudoPassword = credentialService.Retrieve(server.Id, CredentialKind.SudoPassword);
             if (!string.IsNullOrEmpty(sudoPassword))
             {
                 return await ExecuteSudoWithPasswordAsync(
-                    session, command, sudoPassword, interactive: false, cancellationToken, commandTimeout);
+                    session, command, sudoPassword, interactive: false, cancellationToken, commandTimeout, outputReceived);
             }
         }
 
@@ -115,16 +123,20 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
             var passwordless = await session.ExecuteAsync("doas -n true", cancellationToken: cancellationToken);
             if (passwordless.ExitStatus == 0)
             {
-                return await session.ExecuteAsync(
+                return await ExecuteCommandAsync(
+                    session,
                     $"doas -n sh -c {QuoteShellArgument(command)}",
-                    cancellationToken: cancellationToken,
-                    commandTimeout: commandTimeout);
+                    null,
+                    cancellationToken,
+                    commandTimeout,
+                    outputReceived);
             }
 
             var doasPassword = credentialService.Retrieve(server.Id, CredentialKind.DoasPassword);
             if (!string.IsNullOrEmpty(doasPassword))
             {
-                return await ExecuteWithDoasAsync(session, command, doasPassword, cancellationToken, commandTimeout);
+                return await ExecuteWithDoasAsync(
+                    session, command, doasPassword, cancellationToken, commandTimeout, outputReceived);
             }
         }
 
@@ -134,7 +146,7 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
             var rootPassword = credentialService.Retrieve(server.Id, CredentialKind.RootPassword);
             if (!string.IsNullOrEmpty(rootPassword))
             {
-                return await ExecuteWithSuAsync(session, command, rootPassword, cancellationToken, commandTimeout);
+                return await ExecuteWithSuAsync(session, command, rootPassword, cancellationToken, commandTimeout, outputReceived);
             }
         }
 
@@ -173,16 +185,19 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
         string password,
         bool interactive,
         CancellationToken cancellationToken,
-        TimeSpan? commandTimeout)
+        TimeSpan? commandTimeout,
+        Action<string>? outputReceived)
     {
         var elevatedCommand = interactive
             ? $"sudo -S -p '' -i -- sh -c {QuoteShellArgument(command)}"
             : $"sudo -S -p '' -- sh -c {QuoteShellArgument(command)}";
-        return await session.ExecuteAsync(
+        return await ExecuteCommandAsync(
+            session,
             elevatedCommand,
             password + "\n",
             cancellationToken,
-            commandTimeout);
+            commandTimeout,
+            outputReceived);
     }
 
     private static async Task<SshCommandResult> ExecuteWithDoasAsync(
@@ -190,13 +205,23 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
         string command,
         string password,
         CancellationToken cancellationToken,
-        TimeSpan? commandTimeout)
+        TimeSpan? commandTimeout,
+        Action<string>? outputReceived)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var timeout = commandTimeout ?? TimeSpan.FromSeconds(30);
         return await Task.Run(() =>
         {
             using var shell = session.CreateShellStream();
+            var redactor = new ShellOutputRedactor(password);
+            EventHandler<Renci.SshNet.Common.ShellDataEventArgs> dataReceived = (_, args) =>
+                PublishOutput(outputReceived, redactor.Push(args.Data));
+            shell.DataReceived += dataReceived;
+            using var cancellationRegistration = cancellationToken.Register(
+                static state => ((ShellStream)state!).Dispose(), shell);
+
+            try
+            {
             shell.WriteLine($"doas -u root sh -c {QuoteShellArgument(command)}; printf '\\nLUM_EXIT:%s\\n' \"$?\"");
 
             var exitPattern = new Regex("LUM_EXIT:(?<code>[0-9]+)", RegexOptions.CultureInvariant);
@@ -227,9 +252,19 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
                 throw new InvalidOperationException("The doas command did not return an exit status.");
             }
 
-            var output = exitPattern.Replace(response, string.Empty).Trim();
+            PublishOutput(outputReceived, redactor.Push([], flush: true));
+            var output = exitPattern.Replace(response, string.Empty).Replace(password, "[REDACTED]", StringComparison.Ordinal).Trim();
             return new SshCommandResult(output, string.Empty, exitStatus);
-        }, cancellationToken);
+            }
+            catch (Exception) when (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+            finally
+            {
+                shell.DataReceived -= dataReceived;
+            }
+        }, CancellationToken.None);
     }
 
     private static async Task<SshCommandResult> ExecuteWithSuAsync(
@@ -237,13 +272,23 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
         string command,
         string rootPassword,
         CancellationToken cancellationToken,
-        TimeSpan? commandTimeout)
+        TimeSpan? commandTimeout,
+        Action<string>? outputReceived)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var timeout = commandTimeout ?? TimeSpan.FromSeconds(30);
         return await Task.Run(() =>
         {
             using var shell = session.CreateShellStream();
+            var redactor = new ShellOutputRedactor(rootPassword);
+            EventHandler<Renci.SshNet.Common.ShellDataEventArgs> dataReceived = (_, args) =>
+                PublishOutput(outputReceived, redactor.Push(args.Data));
+            shell.DataReceived += dataReceived;
+            using var cancellationRegistration = cancellationToken.Register(
+                static state => ((ShellStream)state!).Dispose(), shell);
+
+            try
+            {
             shell.WriteLine($"su - -c {QuoteShellArgument(command)}; printf '\\nLUM_EXIT:%s\\n' \"$?\"");
 
             var exitPattern = new Regex("LUM_EXIT:(?<code>[0-9]+)", RegexOptions.CultureInvariant);
@@ -274,9 +319,90 @@ public sealed class PrivilegeElevationService(CredentialService credentialServic
                 throw new InvalidOperationException("The su command did not return an exit status.");
             }
 
-            var output = exitPattern.Replace(response, string.Empty).Trim();
+            PublishOutput(outputReceived, redactor.Push([], flush: true));
+            var output = exitPattern.Replace(response, string.Empty).Replace(rootPassword, "[REDACTED]", StringComparison.Ordinal).Trim();
             return new SshCommandResult(output, string.Empty, exitStatus);
-        }, cancellationToken);
+            }
+            catch (Exception) when (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+            finally
+            {
+                shell.DataReceived -= dataReceived;
+            }
+        }, CancellationToken.None);
+    }
+
+    private static Task<SshCommandResult> ExecuteCommandAsync(
+        SshConnectionSession session,
+        string command,
+        string? standardInput,
+        CancellationToken cancellationToken,
+        TimeSpan? commandTimeout,
+        Action<string>? outputReceived) =>
+        outputReceived is null
+            ? session.ExecuteAsync(command, standardInput, cancellationToken, commandTimeout)
+            : session.ExecuteStreamingAsync(command, standardInput, outputReceived, cancellationToken, commandTimeout);
+
+    private static void PublishOutput(Action<string>? outputReceived, string output)
+    {
+        if (output.Length == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            outputReceived?.Invoke(output);
+        }
+        catch (Exception)
+        {
+            // A UI callback must not interrupt a remote package operation.
+        }
+    }
+
+    private sealed class ShellOutputRedactor(string secret)
+    {
+        private readonly object _gate = new();
+        private readonly Decoder _decoder = Encoding.UTF8.GetDecoder();
+        private readonly StringBuilder _pending = new();
+
+        public string Push(byte[] bytes, bool flush = false)
+        {
+            lock (_gate)
+            {
+                var chars = new char[Encoding.UTF8.GetMaxCharCount(bytes.Length)];
+                var count = _decoder.GetChars(bytes, 0, bytes.Length, chars, 0, flush);
+                _pending.Append(chars, 0, count);
+
+                var raw = _pending.ToString();
+                var safeLength = raw.Length;
+                if (!flush && secret.Length > 1)
+                {
+                    var maximumPartialLength = Math.Min(secret.Length - 1, raw.Length);
+                    for (var partialLength = maximumPartialLength; partialLength > 0; partialLength--)
+                    {
+                        if (raw.EndsWith(secret[..partialLength], StringComparison.Ordinal))
+                        {
+                            safeLength -= partialLength;
+                            break;
+                        }
+                    }
+                }
+
+                var output = raw[..safeLength].Replace(secret, "[REDACTED]", StringComparison.Ordinal);
+                _pending.Clear();
+                _pending.Append(raw[safeLength..]);
+                if (flush)
+                {
+                    output += _pending.ToString().Replace(secret, "[REDACTED]", StringComparison.Ordinal);
+                    _pending.Clear();
+                }
+
+                return output;
+            }
+        }
     }
 
     private static string QuoteShellArgument(string value) => $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
