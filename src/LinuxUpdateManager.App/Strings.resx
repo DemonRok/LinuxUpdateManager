@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="AppTitle" xml:space="preserve"><value>Linux Update Manager</value></data>
+  <data name="DashboardTitle" xml:space="preserve"><value>Server Dashboard</value></data>
+  <data name="DemoNotice" xml:space="preserve"><value>Demonstration data only. No server connections are performed in this phase.</value></data>
+  <data name="LanguageLabel" xml:space="preserve"><value>Language</value></data>
+  <data name="ColumnName" xml:space="preserve"><value>Server</value></data>
+  <data name="ColumnHost" xml:space="preserve"><value>Hostname or IP</value></data>
+  <data name="ColumnDistribution" xml:space="preserve"><value>Distribution</value></data>
+  <data name="ColumnVersion" xml:space="preserve"><value>OS version</value></data>
+  <data name="ColumnConnection" xml:space="preserve"><value>SSH status</value></data>
+  <data name="ColumnUpdates" xml:space="preserve"><value>Available updates</value></data>
+  <data name="ColumnSecurity" xml:space="preserve"><value>Security updates</value></data>
+  <data name="ColumnReboot" xml:space="preserve"><value>Reboot required</value></data>
+  <data name="ColumnChecked" xml:space="preserve"><value>Last update check</value></data>
+  <data name="ColumnOperation" xml:space="preserve"><value>Operation status</value></data>
+  <data name="StatusDemo" xml:space="preserve"><value>Ready · sample data</value></data>
+  <data name="StatusNotConnected" xml:space="preserve"><value>Not connected</value></data>
+  <data name="StatusNotChecked" xml:space="preserve"><value>Not checked</value></data>
+  <data name="StatusIdle" xml:space="preserve"><value>Idle</value></data>
+  <data name="No" xml:space="preserve"><value>No</value></data>
+  <data name="ServerAlpha" xml:space="preserve"><value>Example server</value></data>
+  <data name="ServerBeta" xml:space="preserve"><value>Test server</value></data>
+  <data name="ConfigSaveFailed" xml:space="preserve"><value>Configuration could not be saved</value></data>
+  <data name="CheckForUpdates" xml:space="preserve"><value>Check for Updates</value></data>
+  <data name="UpdateNow" xml:space="preserve"><value>Update Now</value></data>
+  <data name="Later" xml:space="preserve"><value>Later</value></data>
+</root>

@@ -1,0 +1,26 @@
+# Build output
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+*.cache
+
+# Runtime data and logs
+config.json*
+servers.json*
+*.sqlite
+*.db
+*.log
+*.lum
+
+# Signing and local secrets
+*.pfx
+*.p12
+*.key
+*.pem
+secrets.*
+
+# Test and publish output
+TestResults/
+publish/

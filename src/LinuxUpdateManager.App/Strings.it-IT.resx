@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="AppTitle" xml:space="preserve"><value>Linux Update Manager</value></data>
+  <data name="DashboardTitle" xml:space="preserve"><value>Dashboard dei server</value></data>
+  <data name="DemoNotice" xml:space="preserve"><value>Solo dati dimostrativi. In questa fase non vengono effettuate connessioni ai server.</value></data>
+  <data name="LanguageLabel" xml:space="preserve"><value>Lingua</value></data>
+  <data name="ColumnName" xml:space="preserve"><value>Server</value></data>
+  <data name="ColumnHost" xml:space="preserve"><value>Hostname o IP</value></data>
+  <data name="ColumnDistribution" xml:space="preserve"><value>Distribuzione</value></data>
+  <data name="ColumnVersion" xml:space="preserve"><value>Versione SO</value></data>
+  <data name="ColumnConnection" xml:space="preserve"><value>Stato SSH</value></data>
+  <data name="ColumnUpdates" xml:space="preserve"><value>Aggiornamenti disponibili</value></data>
+  <data name="ColumnSecurity" xml:space="preserve"><value>Aggiornamenti di sicurezza</value></data>
+  <data name="ColumnReboot" xml:space="preserve"><value>Riavvio richiesto</value></data>
+  <data name="ColumnChecked" xml:space="preserve"><value>Ultima verifica aggiornamenti</value></data>
+  <data name="ColumnOperation" xml:space="preserve"><value>Stato operazione</value></data>
+  <data name="StatusDemo" xml:space="preserve"><value>Pronto · dati di esempio</value></data>
+  <data name="StatusNotConnected" xml:space="preserve"><value>Non connesso</value></data>
+  <data name="StatusNotChecked" xml:space="preserve"><value>Non verificato</value></data>
+  <data name="StatusIdle" xml:space="preserve"><value>Inattivo</value></data>
+  <data name="No" xml:space="preserve"><value>No</value></data>
+  <data name="ServerAlpha" xml:space="preserve"><value>Server di esempio</value></data>
+  <data name="ServerBeta" xml:space="preserve"><value>Server di test</value></data>
+  <data name="ConfigSaveFailed" xml:space="preserve"><value>Impossibile salvare la configurazione</value></data>
+  <data name="CheckForUpdates" xml:space="preserve"><value>Verifica aggiornamenti</value></data>
+  <data name="UpdateNow" xml:space="preserve"><value>Aggiorna ora</value></data>
+  <data name="Later" xml:space="preserve"><value>Più tardi</value></data>
+</root>

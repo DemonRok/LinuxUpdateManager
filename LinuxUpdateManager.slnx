@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LinuxUpdateManager.App/LinuxUpdateManager.App.csproj" />
+    <Project Path="src/LinuxUpdateManager.Core/LinuxUpdateManager.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LinuxUpdateManager.Tests/LinuxUpdateManager.Tests.csproj" />
+  </Folder>
+</Solution>
