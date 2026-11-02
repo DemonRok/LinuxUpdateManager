@@ -6,7 +6,7 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="AppTitle" xml:space="preserve"><value>Linux Update Manager</value></data>
   <data name="DashboardTitle" xml:space="preserve"><value>Server Dashboard</value></data>
-  <data name="DemoNotice" xml:space="preserve"><value>Server inventory is stored locally. SSH operations are not available yet.</value></data>
+  <data name="DemoNotice" xml:space="preserve"><value>Server inventory is stored locally. SSH connectivity and privilege checks are available.</value></data>
   <data name="LanguageLabel" xml:space="preserve"><value>Language</value></data>
   <data name="ColumnName" xml:space="preserve"><value>Server</value></data>
   <data name="ColumnHost" xml:space="preserve"><value>Hostname or IP</value></data>
@@ -77,4 +77,22 @@
   <data name="CredentialCleanupFailed" xml:space="preserve"><value>The server was removed, but one or more stored credentials could not be deleted.</value></data>
   <data name="StatusInventoryReady" xml:space="preserve"><value>Server inventory ready</value></data>
   <data name="ServerSaved" xml:space="preserve"><value>Server saved.</value></data>
+  <data name="TestConnection" xml:space="preserve"><value>Test SSH</value></data>
+  <data name="TestPrivileges" xml:space="preserve"><value>Test Privileges</value></data>
+  <data name="StatusConnecting" xml:space="preserve"><value>Connecting…</value></data>
+  <data name="StatusChecking" xml:space="preserve"><value>Checking…</value></data>
+  <data name="StatusConnected" xml:space="preserve"><value>Connected</value></data>
+  <data name="StatusConnectionVerified" xml:space="preserve"><value>SSH verified</value></data>
+  <data name="StatusPrivilegesVerified" xml:space="preserve"><value>Root access verified</value></data>
+  <data name="StatusPrivilegesDenied" xml:space="preserve"><value>Root access denied</value></data>
+  <data name="StatusHostKeyChanged" xml:space="preserve"><value>Host key changed</value></data>
+  <data name="StatusFailed" xml:space="preserve"><value>Failed</value></data>
+  <data name="ConnectionCheckInProgress" xml:space="preserve"><value>Testing SSH connection…</value></data>
+  <data name="PrivilegeCheckInProgress" xml:space="preserve"><value>Testing root access…</value></data>
+  <data name="ConnectionCheckSucceeded" xml:space="preserve"><value>SSH connection verified.</value></data>
+  <data name="PrivilegeCheckSucceeded" xml:space="preserve"><value>Root access verified.</value></data>
+  <data name="PrivilegeCheckFailed" xml:space="preserve"><value>SSH connected, but root access was denied.</value></data>
+  <data name="UnknownHostKey" xml:space="preserve"><value>The identity of {0}:{1} is not known. Key type: {2}&#xA;Fingerprint: {3}&#xA;&#xA;Trust this host key?</value></data>
+  <data name="HostKeyMismatch" xml:space="preserve"><value>The SSH host key for {0} has changed.&#xA;Expected: {1}&#xA;Received: {2}&#xA;&#xA;Connection blocked. Verify the change with the server administrator.</value></data>
+  <data name="HostKeySaved" xml:space="preserve"><value>Host key verified and saved.</value></data>
 </root>

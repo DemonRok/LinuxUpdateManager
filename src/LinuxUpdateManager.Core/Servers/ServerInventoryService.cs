@@ -141,6 +141,11 @@ public sealed class ServerInventoryService
         {
             throw new InvalidDataException("The server group, notes, or update preferences are invalid.");
         }
+
+        if (server.TrustedHostKeyFingerprint is null || server.TrustedHostKeyFingerprint.Length > 128)
+        {
+            throw new InvalidDataException("The trusted SSH host-key fingerprint is invalid.");
+        }
     }
 
     private async Task SaveCoreAsync(ServerInventoryDocument document, CancellationToken cancellationToken)

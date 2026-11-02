@@ -6,23 +6,23 @@ Linux Update Manager is a Windows desktop application for managing Debian and Ub
 
 ## Implemented Features
 
-The current foundation includes a Windows Forms dashboard, English and Italian runtime localization, versioned application settings, server inventory management, grouping and filtering, and Windows Credential Manager integration. SSH connections and package operations are not implemented yet.
+The current foundation includes a Windows Forms dashboard, English and Italian runtime localization, versioned application settings, server inventory management, grouping and filtering, Windows Credential Manager integration, SSH connection checks, and root privilege verification.
 
 ## Architecture
 
 - `LinuxUpdateManager.App` contains the Windows Forms entry point, dashboard, server editor, credential manager UI, and `.resx` localization resources.
-- `LinuxUpdateManager.Core` contains application configuration, validated server inventory persistence, and Windows Credential Manager access, independent of WinForms controls.
+- `LinuxUpdateManager.Core` contains application configuration, validated server inventory persistence, Windows Credential Manager access, SSH connectivity, and privilege verification, independent of WinForms controls.
 - `LinuxUpdateManager.Tests` contains unit tests for configuration defaults, persistence, validation, and recovery.
 
 ## Configuration
 
 The application stores `config.json` and `servers.json` under `%LOCALAPPDATA%\LinuxUpdateManager`. The server inventory is schema-versioned and stores stable IDs, display names, hosts, SSH ports and usernames, authentication and privilege choices, optional key paths, groups, notes, update preferences, and non-secret Credential Manager references. Inventory writes are atomic, duplicate endpoints are rejected, and malformed or unsupported files are preserved before an empty inventory is restored.
 
-The first-run UI language is English (`en-US`). Credentials are stored separately in Windows Credential Manager under stable per-server references. SSH passwords, sudo passwords, root passwords, and private-key passphrases are supported. No credential values are written to JSON.
+The first-run UI language is English (`en-US`). Credentials are stored separately in Windows Credential Manager under stable per-server references. SSH passwords, sudo passwords, root passwords, and private-key passphrases are supported. No credential values are written to JSON. The first successful SSH connection asks the user to review and trust the server's SHA-256 host-key fingerprint; the accepted fingerprint is saved in the server inventory. A changed fingerprint blocks the connection and requires administrator verification. The dashboard provides separate SSH connection and configured root-access checks; it does not perform package operations yet.
 
 ## Security
 
-The repository uses synthetic values only. Runtime configuration, logs, backup files, build output, and common key or certificate files are excluded by `.gitignore`. Inventory entries and credentials are local to the Windows user profile. SSH host-key verification, SSH connections, and privilege execution are planned for later phases and are not implemented yet.
+The repository uses synthetic values only. Runtime configuration, logs, backup files, build output, and common key or certificate files are excluded by `.gitignore`. Inventory entries and credentials are local to the Windows user profile. SSH host keys are pinned per server after explicit first-use confirmation. The privilege check executes only the fixed read-only command `id -u`, using the selected elevation method; package-management operations are not implemented yet.
 
 ## Build & Release
 

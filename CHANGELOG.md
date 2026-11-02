@@ -14,6 +14,8 @@ All notable changes to this project are documented here.
 - Validated, schema-versioned server inventory in `servers.json` with atomic writes and malformed-file recovery.
 - Add, edit, remove, search, group, and filter server entries in the dashboard.
 - Windows Credential Manager support for SSH, sudo, root, and private-key passphrase credentials.
+- SSH connection checks using SSH.NET, with first-use SHA-256 host-key confirmation and pinning.
+- Root privilege checks for direct root, `sudo`, `sudo -i`, and `su -` configurations.
 
 ### Changed
 

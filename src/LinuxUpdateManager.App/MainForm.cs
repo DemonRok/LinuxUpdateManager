@@ -11,6 +11,8 @@ internal sealed class MainForm : Form
     private readonly ConfigurationService _configurationService;
     private readonly ServerInventoryService _inventoryService;
     private readonly CredentialService _credentialService;
+    private readonly SshConnectionService _sshConnectionService;
+    private readonly PrivilegeElevationService _privilegeElevationService;
     private readonly ServerInventoryDocument _inventory;
     private readonly ComboBox _languageSelector = new();
     private readonly Label _languageLabel = new();
@@ -24,6 +26,8 @@ internal sealed class MainForm : Form
     private readonly Button _editServer = new();
     private readonly Button _removeServer = new();
     private readonly Button _manageCredentials = new();
+    private readonly Button _testConnection = new();
+    private readonly Button _testPrivileges = new();
 
     public MainForm(
         AppConfiguration configuration,
@@ -36,6 +40,8 @@ internal sealed class MainForm : Form
         _configurationService = configurationService;
         _inventoryService = inventoryService;
         _credentialService = credentialService;
+        _sshConnectionService = new SshConnectionService(credentialService);
+        _privilegeElevationService = new PrivilegeElevationService(credentialService);
         _inventory = inventory;
 
         Text = AppLocalizer.Get("AppTitle");
@@ -104,6 +110,8 @@ internal sealed class MainForm : Form
         ConfigureButton(_editServer, "EditServer");
         ConfigureButton(_removeServer, "RemoveServer");
         ConfigureButton(_manageCredentials, "ManageCredentials");
+        ConfigureButton(_testConnection, "TestConnection");
+        ConfigureButton(_testPrivileges, "TestPrivileges");
         _search.Width = 190;
         _search.Margin = new Padding(8, 7, 4, 3);
         _groupFilter.Width = 150;
@@ -113,6 +121,8 @@ internal sealed class MainForm : Form
         toolbar.Controls.Add(_editServer);
         toolbar.Controls.Add(_removeServer);
         toolbar.Controls.Add(_manageCredentials);
+        toolbar.Controls.Add(_testConnection);
+        toolbar.Controls.Add(_testPrivileges);
         toolbar.Controls.Add(_search);
         toolbar.Controls.Add(_groupFilter);
 
@@ -156,6 +166,8 @@ internal sealed class MainForm : Form
         _editServer.Click += EditServerClicked;
         _removeServer.Click += RemoveServerClicked;
         _manageCredentials.Click += ManageCredentialsClicked;
+        _testConnection.Click += TestConnectionClicked;
+        _testPrivileges.Click += TestPrivilegesClicked;
     }
 
     private void ApplyLanguage()
@@ -171,6 +183,8 @@ internal sealed class MainForm : Form
         ConfigureButton(_editServer, "EditServer");
         ConfigureButton(_removeServer, "RemoveServer");
         ConfigureButton(_manageCredentials, "ManageCredentials");
+        ConfigureButton(_testConnection, "TestConnection");
+        ConfigureButton(_testPrivileges, "TestPrivileges");
 
         var preferredIndex = _configuration.Language == "it-IT" ? 1 : 0;
         if (_languageSelector.SelectedIndex != preferredIndex)
@@ -348,6 +362,148 @@ internal sealed class MainForm : Form
         _editServer.Enabled = hasSelection;
         _removeServer.Enabled = hasSelection;
         _manageCredentials.Enabled = hasSelection;
+        _testConnection.Enabled = hasSelection;
+        _testPrivileges.Enabled = hasSelection;
+    }
+
+    private async void TestConnectionClicked(object? sender, EventArgs e)
+    {
+        var selected = SelectedServer();
+        if (selected is null)
+        {
+            ShowSelectServerMessage();
+            return;
+        }
+
+        await RunSshCheckAsync(selected, testPrivileges: false);
+    }
+
+    private async void TestPrivilegesClicked(object? sender, EventArgs e)
+    {
+        var selected = SelectedServer();
+        if (selected is null)
+        {
+            ShowSelectServerMessage();
+            return;
+        }
+
+        await RunSshCheckAsync(selected, testPrivileges: true);
+    }
+
+    private async Task RunSshCheckAsync(ServerProfile server, bool testPrivileges)
+    {
+        _testConnection.Enabled = false;
+        _testPrivileges.Enabled = false;
+        SetServerStatus(server.Id, AppLocalizer.Get("StatusConnecting"), AppLocalizer.Get("StatusChecking"));
+        _status.Text = AppLocalizer.Get(testPrivileges ? "PrivilegeCheckInProgress" : "ConnectionCheckInProgress");
+
+        try
+        {
+            using var session = await _sshConnectionService.ConnectAsync(server, ConfirmUnknownHostKey);
+            if (session.NewlyTrustedFingerprint is { Length: > 0 } fingerprint &&
+                !await SaveTrustedFingerprintAsync(server, fingerprint))
+            {
+                SetServerStatus(server.Id, AppLocalizer.Get("StatusNotConnected"), AppLocalizer.Get("StatusFailed"));
+                return;
+            }
+
+            if (testPrivileges)
+            {
+                var hasRootAccess = await _privilegeElevationService.VerifyRootAccessAsync(session, server);
+                SetServerStatus(server.Id, AppLocalizer.Get("StatusConnected"), AppLocalizer.Get(
+                    hasRootAccess ? "StatusPrivilegesVerified" : "StatusPrivilegesDenied"));
+                _status.Text = AppLocalizer.Get(hasRootAccess ? "PrivilegeCheckSucceeded" : "PrivilegeCheckFailed");
+            }
+            else
+            {
+                SetServerStatus(server.Id, AppLocalizer.Get("StatusConnected"), AppLocalizer.Get("StatusConnectionVerified"));
+                _status.Text = AppLocalizer.Get("ConnectionCheckSucceeded");
+            }
+        }
+        catch (HostKeyMismatchException exception)
+        {
+            var message = string.Format(AppLocalizer.Get("HostKeyMismatch"), exception.Host,
+                FormatFingerprint(exception.ExpectedFingerprint), FormatFingerprint(exception.ReceivedFingerprint));
+            SetServerStatus(server.Id, AppLocalizer.Get("StatusHostKeyChanged"), AppLocalizer.Get("StatusFailed"));
+            _status.Text = AppLocalizer.Get("StatusFailed");
+            MessageBox.Show(this, message, AppLocalizer.Get("AppTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch (HostKeyRejectedException)
+        {
+            SetServerStatus(server.Id, AppLocalizer.Get("StatusNotConnected"), AppLocalizer.Get("StatusFailed"));
+            _status.Text = AppLocalizer.Get("StatusFailed");
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or
+                                           System.ComponentModel.Win32Exception or Renci.SshNet.Common.SshException or
+                                           UnauthorizedAccessException or OperationCanceledException)
+        {
+            SetServerStatus(server.Id, AppLocalizer.Get("StatusNotConnected"), AppLocalizer.Get("StatusFailed"));
+            _status.Text = AppLocalizer.Get("StatusFailed");
+            MessageBox.Show(this, exception.Message, AppLocalizer.Get("AppTitle"), MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+        finally
+        {
+            UpdateCommandButtons();
+        }
+    }
+
+    private bool ConfirmUnknownHostKey(HostKeyChallenge challenge)
+    {
+        if (InvokeRequired)
+        {
+            return (bool)Invoke(new Func<bool>(() => ConfirmUnknownHostKey(challenge)));
+        }
+
+        var message = string.Format(AppLocalizer.Get("UnknownHostKey"), challenge.Host, challenge.Port,
+            challenge.KeyType, FormatFingerprint(challenge.Sha256Fingerprint));
+        return MessageBox.Show(this, message, AppLocalizer.Get("AppTitle"), MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning) == DialogResult.Yes;
+    }
+
+    private async Task<bool> SaveTrustedFingerprintAsync(ServerProfile server, string fingerprint)
+    {
+        var updatedServer = CopyServer(server);
+        updatedServer.TrustedHostKeyFingerprint = fingerprint;
+        var updatedServers = _inventory.Servers.Select(item => item.Id == server.Id ? updatedServer : item).ToList();
+        if (!await SaveInventoryAsync(updatedServers, server.Id))
+        {
+            return false;
+        }
+
+        _status.Text = AppLocalizer.Get("HostKeySaved");
+        return true;
+    }
+
+    private static ServerProfile CopyServer(ServerProfile source) => new()
+    {
+        Id = source.Id,
+        Name = source.Name,
+        Host = source.Host,
+        SshPort = source.SshPort,
+        Username = source.Username,
+        AuthenticationMethod = source.AuthenticationMethod,
+        PrivateKeyPath = source.PrivateKeyPath,
+        TrustedHostKeyFingerprint = source.TrustedHostKeyFingerprint,
+        PrivilegeElevationMethod = source.PrivilegeElevationMethod,
+        Group = source.Group,
+        Notes = source.Notes,
+        UpdatePreferences = new ServerUpdatePreferences { CheckForUpdates = source.UpdatePreferences.CheckForUpdates }
+    };
+
+    private static string FormatFingerprint(string fingerprint) => $"SHA256:{fingerprint}";
+
+    private void SetServerStatus(Guid serverId, string connectionStatus, string operationStatus)
+    {
+        var row = _servers.Rows.Cast<DataGridViewRow>().FirstOrDefault(candidate =>
+            candidate.Tag is Guid id && id == serverId);
+        if (row is null)
+        {
+            return;
+        }
+
+        row.Cells["Connection"].Value = connectionStatus;
+        row.Cells["Operation"].Value = operationStatus;
     }
 
     private async void AddServerClicked(object? sender, EventArgs e)

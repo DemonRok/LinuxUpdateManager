@@ -171,6 +171,7 @@ internal sealed class ServerEditorForm : Form
         Username = source.Username,
         AuthenticationMethod = source.AuthenticationMethod,
         PrivateKeyPath = source.PrivateKeyPath,
+        TrustedHostKeyFingerprint = source.TrustedHostKeyFingerprint,
         PrivilegeElevationMethod = source.PrivilegeElevationMethod,
         Group = source.Group,
         Notes = source.Notes,

@@ -37,6 +37,8 @@ public sealed class ServerProfile
 
     public string PrivateKeyPath { get; set; } = string.Empty;
 
+    public string TrustedHostKeyFingerprint { get; set; } = string.Empty;
+
     public PrivilegeElevationMethod PrivilegeElevationMethod { get; set; } = PrivilegeElevationMethod.Sudo;
 
     public string Group { get; set; } = string.Empty;

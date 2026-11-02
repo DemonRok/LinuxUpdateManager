@@ -6,7 +6,7 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="AppTitle" xml:space="preserve"><value>Linux Update Manager</value></data>
   <data name="DashboardTitle" xml:space="preserve"><value>Dashboard dei server</value></data>
-  <data name="DemoNotice" xml:space="preserve"><value>L'inventario server è salvato in locale. Le operazioni SSH non sono ancora disponibili.</value></data>
+  <data name="DemoNotice" xml:space="preserve"><value>L'inventario server è salvato in locale. Sono disponibili i test di connessione SSH e dei privilegi.</value></data>
   <data name="LanguageLabel" xml:space="preserve"><value>Lingua</value></data>
   <data name="ColumnName" xml:space="preserve"><value>Server</value></data>
   <data name="ColumnHost" xml:space="preserve"><value>Hostname o IP</value></data>
@@ -77,4 +77,22 @@
   <data name="CredentialCleanupFailed" xml:space="preserve"><value>Server rimosso, ma non è stato possibile eliminare una o più credenziali salvate.</value></data>
   <data name="StatusInventoryReady" xml:space="preserve"><value>Inventario server pronto</value></data>
   <data name="ServerSaved" xml:space="preserve"><value>Server salvato.</value></data>
+  <data name="TestConnection" xml:space="preserve"><value>Test SSH</value></data>
+  <data name="TestPrivileges" xml:space="preserve"><value>Test privilegi</value></data>
+  <data name="StatusConnecting" xml:space="preserve"><value>Connessione…</value></data>
+  <data name="StatusChecking" xml:space="preserve"><value>Verifica…</value></data>
+  <data name="StatusConnected" xml:space="preserve"><value>Connesso</value></data>
+  <data name="StatusConnectionVerified" xml:space="preserve"><value>SSH verificato</value></data>
+  <data name="StatusPrivilegesVerified" xml:space="preserve"><value>Accesso root verificato</value></data>
+  <data name="StatusPrivilegesDenied" xml:space="preserve"><value>Accesso root negato</value></data>
+  <data name="StatusHostKeyChanged" xml:space="preserve"><value>Chiave host modificata</value></data>
+  <data name="StatusFailed" xml:space="preserve"><value>Non riuscito</value></data>
+  <data name="ConnectionCheckInProgress" xml:space="preserve"><value>Verifica della connessione SSH…</value></data>
+  <data name="PrivilegeCheckInProgress" xml:space="preserve"><value>Verifica dell'accesso root…</value></data>
+  <data name="ConnectionCheckSucceeded" xml:space="preserve"><value>Connessione SSH verificata.</value></data>
+  <data name="PrivilegeCheckSucceeded" xml:space="preserve"><value>Accesso root verificato.</value></data>
+  <data name="PrivilegeCheckFailed" xml:space="preserve"><value>Connessione SSH riuscita, ma l'accesso root è stato negato.</value></data>
+  <data name="UnknownHostKey" xml:space="preserve"><value>L'identità di {0}:{1} non è ancora nota. Tipo di chiave: {2}&#xA;Impronta digitale: {3}&#xA;&#xA;Consideri attendibile questa chiave host?</value></data>
+  <data name="HostKeyMismatch" xml:space="preserve"><value>La chiave SSH di {0} è cambiata.&#xA;Attesa: {1}&#xA;Ricevuta: {2}&#xA;&#xA;Connessione bloccata. Verifica la modifica con l'amministratore del server.</value></data>
+  <data name="HostKeySaved" xml:space="preserve"><value>Chiave host verificata e salvata.</value></data>
 </root>
