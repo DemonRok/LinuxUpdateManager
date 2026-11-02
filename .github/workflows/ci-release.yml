@@ -118,13 +118,26 @@ jobs:
       - name: Create ZIP package with license notices
         if: steps.prepare.outputs.release == 'true'
         run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/lum-package"
-          cp -a "$RUNNER_TEMP/lum-publish/." "$RUNNER_TEMP/lum-package/"
-          cp LICENSE NOTICE "$RUNNER_TEMP/lum-package/"
-          cd "$RUNNER_TEMP/lum-package"
-          tar.exe -a -c -f ../LinuxUpdateManager-win-x64.zip *
-        shell: bash
+          $packageDirectory = Join-Path $env:RUNNER_TEMP 'lum-package'
+          $publishDirectory = Join-Path $env:RUNNER_TEMP 'lum-publish'
+          $archivePath = Join-Path $env:RUNNER_TEMP 'LinuxUpdateManager-win-x64.zip'
+          New-Item -ItemType Directory -Path $packageDirectory | Out-Null
+          Copy-Item -Path (Join-Path $publishDirectory '*') -Destination $packageDirectory -Recurse
+          Copy-Item -LiteralPath @('LICENSE', 'NOTICE') -Destination $packageDirectory
+          Compress-Archive -Path (Join-Path $packageDirectory '*') -DestinationPath $archivePath -CompressionLevel Fastest
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
+          try {
+            $entryNames = @($archive.Entries | ForEach-Object { $_.FullName })
+            foreach ($requiredEntry in @('LinuxUpdateManager.App.exe', 'LinuxUpdateManager.App.dll', 'LICENSE', 'NOTICE')) {
+              if ($entryNames -notcontains $requiredEntry) {
+                throw "Release ZIP is missing required entry '$requiredEntry'."
+              }
+            }
+          } finally {
+            $archive.Dispose()
+          }
+        shell: pwsh
 
       - name: Sign update manifest and create SHA-256 checksum
         if: steps.prepare.outputs.release == 'true'

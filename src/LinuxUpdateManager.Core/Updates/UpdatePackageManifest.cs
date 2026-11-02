@@ -33,7 +33,9 @@ public sealed record UpdatePackageManifest(
             throw new CryptographicException("The update manifest signature is invalid.");
         }
 
-        var manifest = JsonSerializer.Deserialize<UpdatePackageManifest>(manifestBytes)
+        var manifest = JsonSerializer.Deserialize<UpdatePackageManifest>(
+                manifestBytes,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidDataException("The update manifest is empty.");
         manifest.Validate();
         return manifest;

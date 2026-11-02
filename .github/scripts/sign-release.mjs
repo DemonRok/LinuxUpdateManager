@@ -42,10 +42,10 @@ packageStream.on("data", chunk => hash.update(chunk));
 await once(packageStream, "end");
 const sha256 = hash.digest("hex");
 const manifest = {
-  version,
-  tagName: `v${version}`,
-  assetName: path.basename(packageAssetPath),
-  sha256
+  Version: version,
+  TagName: `v${version}`,
+  AssetName: path.basename(packageAssetPath),
+  Sha256: sha256
 };
 const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 const signature = sign("RSA-SHA256", manifestBytes, privateKey).toString("base64");

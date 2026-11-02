@@ -39,6 +39,21 @@ public sealed class ApplicationUpdateTests
     }
 
     [Fact]
+    public void SignedManifestAcceptsLegacyPascalCaseFields()
+    {
+        using var rsa = RSA.Create(2048);
+        var publicKey = rsa.ExportSubjectPublicKeyInfoPem();
+        var bytes = System.Text.Encoding.UTF8.GetBytes(
+            """{"Version":"1.2.3","TagName":"v1.2.3","AssetName":"LinuxUpdateManager-win-x64.zip","Sha256":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}""");
+        var signature = rsa.SignData(bytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+        var parsed = UpdatePackageManifest.VerifyAndParse(bytes, signature, publicKey);
+
+        Assert.Equal("1.2.3", parsed.Version);
+        Assert.Equal("v1.2.3", parsed.TagName);
+    }
+
+    [Fact]
     public void SignedManifestRejectsUnexpectedAssetAndChecksum()
     {
         using var rsa = RSA.Create(2048);
