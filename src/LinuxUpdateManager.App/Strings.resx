@@ -210,7 +210,7 @@
   <data name="BackupConfirmSecretImport" xml:space="preserve"><value>Restore {0} credential(s) and {1} private key file(s) to this Windows account? Credentials will be written to Windows Credential Manager and key files to the app's local data folder.</value></data>
   <data name="BackupImportSucceeded" xml:space="preserve"><value>Restore complete. Servers imported: {0}; duplicate servers skipped: {1}; credentials restored: {2}; private keys restored: {3}; credential entries skipped: {4}.</value></data>
   <data name="SupportProject" xml:space="preserve"><value>Support the Project</value></data>
-  <data name="SupportIntro" xml:space="preserve"><value>Linux Update Manager is free and open source. Contributions are optional and do not unlock features.</value></data>
+  <data name="SupportIntro" xml:space="preserve"><value>Linux Update Manager is free and open source. You can support its continued development with an optional contribution.</value></data>
   <data name="SupportPayPal" xml:space="preserve"><value>Open PayPal</value></data>
   <data name="SupportBitcoin" xml:space="preserve"><value>Bitcoin address</value></data>
   <data name="SupportCopyBitcoin" xml:space="preserve"><value>Copy address</value></data>

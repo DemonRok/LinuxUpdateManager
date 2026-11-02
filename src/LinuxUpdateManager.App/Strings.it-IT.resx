@@ -210,7 +210,7 @@
   <data name="BackupConfirmSecretImport" xml:space="preserve"><value>Ripristinare {0} credenziali e {1} file di chiave privata in questo account Windows? Le credenziali saranno salvate in Gestione credenziali di Windows e le chiavi nella cartella dati locale dell'app.</value></data>
   <data name="BackupImportSucceeded" xml:space="preserve"><value>Ripristino completato. Server importati: {0}; doppioni ignorati: {1}; credenziali ripristinate: {2}; chiavi private ripristinate: {3}; credenziali ignorate: {4}.</value></data>
   <data name="SupportProject" xml:space="preserve"><value>Sostieni il progetto</value></data>
-  <data name="SupportIntro" xml:space="preserve"><value>Linux Update Manager è gratuito e open source. Le contribuzioni sono facoltative e non sbloccano funzionalità.</value></data>
+  <data name="SupportIntro" xml:space="preserve"><value>Linux Update Manager è gratuito e open source. Puoi sostenerne lo sviluppo con un contributo facoltativo.</value></data>
   <data name="SupportPayPal" xml:space="preserve"><value>Apri PayPal</value></data>
   <data name="SupportBitcoin" xml:space="preserve"><value>Indirizzo Bitcoin</value></data>
   <data name="SupportCopyBitcoin" xml:space="preserve"><value>Copia indirizzo</value></data>
