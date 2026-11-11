@@ -9,6 +9,10 @@ public sealed class UpdateDetectionService
         "^Inst\\s+(?<name>\\S+)(?:\\s+\\[(?<current>[^\\]]*)\\])?\\s+\\((?<candidate>\\S+)(?:\\s+(?<repository>[^)]*))?\\)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
 
+    private static readonly Regex AptListPackageLine = new(
+        "^(?<name>[^/\\s]+)/(?<repository>\\S+)\\s+(?<candidate>\\S+)\\s+\\S+\\s+\\[upgradable from:\\s+(?<current>[^\\]]+)\\]",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
+
     private readonly IReadOnlyList<IUpdateProvider> _providers;
 
     public UpdateDetectionService(PrivilegeElevationService privilegeElevationService)
@@ -74,19 +78,35 @@ public sealed class UpdateDetectionService
         var packages = new List<PackageUpdate>();
         foreach (Match match in AptPackageLine.Matches(output))
         {
-            var repository = match.Groups["repository"].Success
-                ? match.Groups["repository"].Value.Trim()
-                : string.Empty;
+            var repository = match.Groups["repository"].Value.Trim();
             bool? isSecurity = repository.Length == 0
                 ? null
                 : repository.Contains("security", StringComparison.OrdinalIgnoreCase) ||
                   repository.Contains("debian-security", StringComparison.OrdinalIgnoreCase);
             packages.Add(new PackageUpdate(
                 match.Groups["name"].Value,
-                match.Groups["current"].Success ? match.Groups["current"].Value : string.Empty,
+                match.Groups["current"].Value.Trim(),
                 match.Groups["candidate"].Value,
                 isSecurity,
                 repository.Length == 0 ? null : repository));
+        }
+
+        return packages;
+    }
+
+    public static IReadOnlyList<PackageUpdate> ParseAptListPackageUpdates(string output)
+    {
+        var packages = new List<PackageUpdate>();
+        foreach (Match match in AptListPackageLine.Matches(output))
+        {
+            var repository = match.Groups["repository"].Value.Trim();
+            var isSecurity = repository.Contains("security", StringComparison.OrdinalIgnoreCase);
+            packages.Add(new PackageUpdate(
+                match.Groups["name"].Value,
+                match.Groups["current"].Value.Trim(),
+                match.Groups["candidate"].Value,
+                isSecurity,
+                repository));
         }
 
         return packages;
