@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-11-11
+
+### Fixed
+
+- align APT update detection with package list
+
 ## [1.0.5] - 2026-11-02
 
 ### Fixed
