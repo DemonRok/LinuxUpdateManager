@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-12
+
 ### Fixed
 
 - allow APT upgrades to install new dependencies without removing packages
