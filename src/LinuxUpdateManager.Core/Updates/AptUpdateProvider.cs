@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 using LinuxUpdateManager.Core.Servers;
 
 namespace LinuxUpdateManager.Core.Updates;
@@ -6,6 +8,12 @@ internal sealed class AptUpdateProvider(PrivilegeElevationService privilegeEleva
 {
     private static readonly TimeSpan AptTimeout = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan UpgradeTimeout = TimeSpan.FromHours(2);
+    private static readonly Regex AutoremovePackageLine = new(
+        "^Remv\\s+(?<name>\\S+)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
+    private static readonly Regex PhasedUpdateHeader = new(
+        "^The following upgrades have been deferred due to phasing:\\s*\\r?\\n(?<packages>(?:[ \\t]+[^\\r\\n]+\\r?\\n?)+)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
 
     public bool CanHandle(IReadOnlyDictionary<string, string> osRelease) =>
         UpdateDetectionService.IsAptDistribution(osRelease);
@@ -38,11 +46,7 @@ internal sealed class AptUpdateProvider(PrivilegeElevationService privilegeEleva
             .Where(package => !heldPackages.Contains(StripAptArchitectureSuffix(package.Name)))
             .ToArray();
 
-        var rebootCheck = await session.ExecuteAsync(
-            "if test -f /var/run/reboot-required; then printf yes; else printf no; fi",
-            cancellationToken: cancellationToken);
-        UpdateDetectionService.EnsureSuccess(rebootCheck, "Could not determine whether the server requires a reboot.");
-        var rebootRequired = rebootCheck.Output.Trim().Equals("yes", StringComparison.OrdinalIgnoreCase);
+        var rebootRequired = await CheckRebootRequiredAsync(session, server, cancellationToken);
         int? securityCount = packages.Length == 0
             ? 0
             : packages.All(package => package.IsSecurityUpdate.HasValue)
@@ -69,10 +73,45 @@ internal sealed class AptUpdateProvider(PrivilegeElevationService privilegeEleva
     public Task<SshCommandResult> UpgradeAsync(
         SshConnectionSession session,
         ServerProfile server,
+        bool includePhasedUpdates,
         Action<string>? outputReceived,
         CancellationToken cancellationToken)
     {
         return privilegeElevationService.ExecuteAsRootAsync(
-            session, server, PackageUpgradeCommands.Apt, cancellationToken, UpgradeTimeout, outputReceived);
+            session,
+            server,
+            includePhasedUpdates ? PackageUpgradeCommands.AptIncludingPhasedUpdates : PackageUpgradeCommands.Apt,
+            cancellationToken,
+            UpgradeTimeout,
+            outputReceived);
+    }
+
+    public async Task<bool> CheckRebootRequiredAsync(
+        SshConnectionSession session,
+        ServerProfile server,
+        CancellationToken cancellationToken)
+    {
+        var rebootCheck = await session.ExecuteAsync(
+            "if test -f /var/run/reboot-required; then printf yes; else printf no; fi",
+            cancellationToken: cancellationToken);
+        UpdateDetectionService.EnsureSuccess(rebootCheck, "Could not determine whether the server requires a reboot.");
+        return rebootCheck.Output.Trim().Equals("yes", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static IReadOnlyList<string> ParseAutoremoveCandidates(string output) =>
+        AutoremovePackageLine.Matches(output)
+            .Select(match => match.Groups["name"].Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+    public static IReadOnlyList<string> ParsePhasedUpdatePackages(string output)
+    {
+        var match = PhasedUpdateHeader.Match(output);
+        return match.Success
+            ? match.Groups["packages"].Value
+                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray()
+            : [];
     }
 }

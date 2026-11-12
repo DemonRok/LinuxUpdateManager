@@ -121,6 +121,8 @@ internal sealed class OperationHistoryForm : Form
         AddOperationFilter(HistoryOperationTypes.PrivilegeCheck, "HistoryOperationPrivilegeCheck");
         AddOperationFilter(HistoryOperationTypes.UpdateCheck, "HistoryOperationUpdateCheck");
         AddOperationFilter(HistoryOperationTypes.PackageUpgrade, "HistoryOperationPackageUpgrade");
+        AddOperationFilter(HistoryOperationTypes.Autoremove, "HistoryOperationAutoremove");
+        AddOperationFilter(HistoryOperationTypes.Reboot, "HistoryOperationReboot");
         _operationFilter.SelectedIndex = 0;
         _resultFilter.Items.Add(new HistoryFilterItem("", AppLocalizer.Get("HistoryAllResults")));
         AddResultFilter(HistoryOperationResults.Succeeded, "HistoryResultSucceeded");

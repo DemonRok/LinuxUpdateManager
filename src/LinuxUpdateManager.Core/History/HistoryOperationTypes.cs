@@ -6,6 +6,8 @@ public static class HistoryOperationTypes
     public const string PrivilegeCheck = "PrivilegeCheck";
     public const string UpdateCheck = "UpdateCheck";
     public const string PackageUpgrade = "PackageUpgrade";
+    public const string Autoremove = "Autoremove";
+    public const string Reboot = "Reboot";
 }
 
 public static class HistoryOperationResults

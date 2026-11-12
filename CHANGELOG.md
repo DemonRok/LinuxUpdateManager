@@ -4,6 +4,17 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- allow APT upgrades to install new dependencies without removing packages
+- keep SSH command output grouped into server-prefixed lines
+
+### Added
+
+- prompt to apply APT upgrades deferred by phased rollout
+- offer APT autoremove after package upgrades when unused packages are found
+- detect reboot requirements, offer a confirmed one-minute reboot, and show its scheduled state
+
 ## [1.0.6] - 2026-11-11
 
 ### Fixed

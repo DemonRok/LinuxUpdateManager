@@ -26,6 +26,7 @@ internal sealed class MainForm : Form
     private readonly ServerInventoryDocument _inventory;
     private readonly ConcurrentDictionary<Guid, UpdateCheckResult> _latestUpdateResults = new();
     private readonly ConcurrentDictionary<Guid, byte> _staleUpdateResults = new();
+    private readonly ConcurrentDictionary<Guid, byte> _rebootScheduledServers = new();
     private readonly SemaphoreSlim _inventorySaveGate = new(1, 1);
     private readonly ComboBox _languageSelector = new();
     private readonly Label _languageLabel = new();
@@ -44,6 +45,7 @@ internal sealed class MainForm : Form
     private readonly Button _testPrivileges = new();
     private readonly Button _checkUpdates = new();
     private readonly Button _updateNow = new();
+    private readonly Button _reboot = new();
     private readonly Button _openHistory = new();
     private readonly Button _openBackupManager = new();
     private readonly Button _supportProject = new();
@@ -152,6 +154,7 @@ internal sealed class MainForm : Form
         ConfigureButton(_testPrivileges, "TestPrivileges");
         ConfigureButton(_checkUpdates, "CheckForUpdates");
         ConfigureButton(_updateNow, "UpdateNow");
+        ConfigureButton(_reboot, "RebootServer");
         ConfigureButton(_openHistory, "OperationHistory");
         ConfigureButton(_openBackupManager, "BackupRestore");
         ConfigureButton(_checkApplicationUpdates, "CheckApplicationUpdates");
@@ -169,6 +172,7 @@ internal sealed class MainForm : Form
         _toolbarActions.Controls.Add(_testPrivileges);
         _toolbarActions.Controls.Add(_checkUpdates);
         _toolbarActions.Controls.Add(_updateNow);
+        _toolbarActions.Controls.Add(_reboot);
         _toolbarActions.Controls.Add(_openHistory);
         _toolbarActions.Controls.Add(_openBackupManager);
         _toolbarActions.Controls.Add(_checkApplicationUpdates);
@@ -220,6 +224,7 @@ internal sealed class MainForm : Form
         _testPrivileges.Click += TestPrivilegesClicked;
         _checkUpdates.Click += CheckUpdatesClicked;
         _updateNow.Click += UpdateNowClicked;
+        _reboot.Click += RebootClicked;
         _openHistory.Click += OpenHistoryClicked;
         _openBackupManager.Click += OpenBackupManagerClicked;
         _checkApplicationUpdates.Click += CheckApplicationUpdatesClicked;
@@ -246,6 +251,7 @@ internal sealed class MainForm : Form
         ConfigureButton(_testPrivileges, "TestPrivileges");
         ConfigureButton(_checkUpdates, "CheckForUpdates");
         ConfigureButton(_updateNow, "UpdateNow");
+        ConfigureButton(_reboot, "RebootServer");
         ConfigureButton(_openHistory, "OperationHistory");
         ConfigureButton(_openBackupManager, "BackupRestore");
         ConfigureButton(_checkApplicationUpdates, "CheckApplicationUpdates");
@@ -307,7 +313,11 @@ internal sealed class MainForm : Form
                 AppLocalizer.Get(result is null ? "StatusNotConnected" : "StatusConnected"),
                 result?.Packages.Count.ToString(AppLocalizer.CurrentCulture) ?? "—",
                 FormatSecurityCount(result?.SecurityUpdateCount),
-                result is null ? "—" : AppLocalizer.Get(result.RebootRequired ? "Yes" : "No"),
+                result is null
+                    ? "—"
+                    : AppLocalizer.Get(_rebootScheduledServers.ContainsKey(server.Id)
+                        ? "RebootScheduled"
+                        : result.RebootRequired ? "Yes" : "No"),
                 result?.CheckedAt.ToLocalTime().ToString("g", AppLocalizer.CurrentCulture)
                     ?? AppLocalizer.Get("StatusNotChecked"),
                 result is null
@@ -561,6 +571,10 @@ internal sealed class MainForm : Form
             _latestUpdateResults.TryGetValue(server.Id, out var result) &&
             result.Packages.Count > 0 &&
             !_staleUpdateResults.ContainsKey(server.Id));
+        _reboot.Enabled = hasSelection && selected.Any(server =>
+            _latestUpdateResults.TryGetValue(server.Id, out var result) &&
+            result.RebootRequired &&
+            !_rebootScheduledServers.ContainsKey(server.Id));
         _openHistory.Enabled = !busy;
         _openBackupManager.Enabled = !busy;
         _checkApplicationUpdates.Enabled = !busy && !_applicationUpdateCheckInProgress;
@@ -675,6 +689,9 @@ internal sealed class MainForm : Form
 
     private Task ApplyRestoredBackupAsync(BackupRestoreResult result)
     {
+        _latestUpdateResults.Clear();
+        _staleUpdateResults.Clear();
+        _rebootScheduledServers.Clear();
         _inventory.Servers = result.Inventory.Servers;
         _configuration.SchemaVersion = result.Configuration.SchemaVersion;
         _configuration.Language = result.Configuration.Language;
@@ -766,6 +783,29 @@ internal sealed class MainForm : Form
         await RunPackageUpdatesAsync(targets);
     }
 
+    private async void RebootClicked(object? sender, EventArgs e)
+    {
+        if (_operationInProgress)
+        {
+            return;
+        }
+
+        var targets = SelectedServers()
+            .Where(server =>
+                _latestUpdateResults.TryGetValue(server.Id, out var result) &&
+                result.RebootRequired &&
+                !_rebootScheduledServers.ContainsKey(server.Id))
+            .ToList();
+        if (targets.Count == 0)
+        {
+            MessageBox.Show(this, AppLocalizer.Get("NoRebootRequired"), AppLocalizer.Get("AppTitle"),
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        await OfferRebootAsync(targets, this);
+    }
+
     private void ServerCellDoubleClicked(object? sender, DataGridViewCellEventArgs e)
     {
         if (e.RowIndex < 0 || _servers.Rows[e.RowIndex].Tag is not Guid serverId ||
@@ -814,6 +854,10 @@ internal sealed class MainForm : Form
             historyStatus = HistoryOperationResults.Succeeded;
             historyOutput = FormatHistoryUpdateResult(result);
             _latestUpdateResults[server.Id] = result;
+            if (!result.RebootRequired)
+            {
+                _rebootScheduledServers.TryRemove(server.Id, out _);
+            }
             _staleUpdateResults.TryRemove(server.Id, out _);
             RefreshRows(server.Id);
             RefreshGroupFilter();
@@ -845,6 +889,11 @@ internal sealed class MainForm : Form
                 historyResult?.SecurityUpdateCount);
             SetOperationInProgress(false);
         }
+
+        if (historyStatus == HistoryOperationResults.Succeeded && historyResult?.RebootRequired == true)
+        {
+            await OfferRebootAsync([server], this);
+        }
     }
 
     private async Task RunMultipleUpdateChecksAsync(IReadOnlyList<ServerProfile> servers)
@@ -853,6 +902,7 @@ internal sealed class MainForm : Form
         using var progress = new UpdateExecutionForm();
         progress.SetStatus(AppLocalizer.Get("UpdateCheckInProgress"));
         var connectedServers = new ConcurrentDictionary<Guid, byte>();
+        IReadOnlyList<ServerProfile> rebootTargets = [];
 
         progress.Shown += async (_, _) =>
         {
@@ -866,6 +916,12 @@ internal sealed class MainForm : Form
                     outcome => AppendOperationOutcome(progress, outcome));
 
                 var summary = FormatOperationSummary(outcomes);
+                rebootTargets = outcomes
+                    .Where(outcome => outcome.Result == ServerOperationResult.Completed &&
+                                      _latestUpdateResults.TryGetValue(outcome.Server.Id, out var result) &&
+                                      result.RebootRequired)
+                    .Select(outcome => outcome.Server)
+                    .ToArray();
                 progress.Complete(summary);
                 _status.Text = summary;
                 ResizeWindowForLocalizedContent();
@@ -892,6 +948,10 @@ internal sealed class MainForm : Form
 
         progress.ShowDialog(this);
         SetOperationInProgress(false);
+        if (rebootTargets.Count > 0)
+        {
+            await OfferRebootAsync(rebootTargets, this);
+        }
     }
 
     private async Task RunUpdateCheckForServerAsync(
@@ -924,6 +984,10 @@ internal sealed class MainForm : Form
 
             result = await _updateDetectionService.CheckAsync(session, server, cancellationToken);
             _latestUpdateResults[server.Id] = result;
+            if (!result.RebootRequired)
+            {
+                _rebootScheduledServers.TryRemove(server.Id, out _);
+            }
             _staleUpdateResults.TryRemove(server.Id, out _);
             await InvokeOnUiAsync(() => RefreshServerUpdateResult(server.Id, result));
             progress.AppendOutput(string.Format(
@@ -962,6 +1026,8 @@ internal sealed class MainForm : Form
         progress.SetStatus(AppLocalizer.Get("UpdateRunning"));
         var connectedServers = new ConcurrentDictionary<Guid, byte>();
         var attemptedServers = new ConcurrentDictionary<Guid, byte>();
+        var phasedPackages = new ConcurrentDictionary<Guid, IReadOnlyList<string>>();
+        var rebootTargets = new List<ServerProfile>();
 
         progress.Shown += async (_, _) =>
         {
@@ -970,13 +1036,76 @@ internal sealed class MainForm : Form
                 var outcomes = await RunServerOperationsAsync(
                     servers,
                     (server, cancellationToken) => RunPackageUpgradeForServerAsync(
-                        server, cancellationToken, progress, connectedServers, attemptedServers),
+                        server, cancellationToken, progress, connectedServers, attemptedServers, phasedPackages),
                     progress.CancellationToken,
                     outcome => AppendOperationOutcome(progress, outcome));
 
                 foreach (var serverId in attemptedServers.Keys)
                 {
                     _staleUpdateResults.TryAdd(serverId, 0);
+                }
+
+                foreach (var outcome in outcomes.Where(outcome => outcome.Result == ServerOperationResult.Completed))
+                {
+                    if (progress.CancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    if (phasedPackages.TryGetValue(outcome.Server.Id, out var deferredPackages))
+                    {
+                        await OfferPhasedUpdatesAsync(outcome.Server, deferredPackages, progress,
+                            progress.CancellationToken);
+                    }
+                }
+
+                foreach (var outcome in outcomes.Where(outcome => outcome.Result == ServerOperationResult.Completed))
+                {
+                    if (progress.CancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    await OfferAutoremoveAsync(outcome.Server, progress, progress.CancellationToken);
+                }
+
+                foreach (var outcome in outcomes.Where(outcome => outcome.Result == ServerOperationResult.Completed))
+                {
+                    try
+                    {
+                        using var session = await _sshConnectionService.ConnectAsync(
+                            outcome.Server, ConfirmUnknownHostKey, CancellationToken.None);
+                        if (session.NewlyTrustedFingerprint is { Length: > 0 } fingerprint &&
+                            !await InvokeOnUiAsync(() => SaveTrustedFingerprintAsync(outcome.Server, fingerprint)))
+                        {
+                            throw new IOException("The trusted host key could not be saved.");
+                        }
+
+                        var rebootRequired = await _updateExecutionService.CheckRebootRequiredAsync(
+                            session, outcome.Server, CancellationToken.None);
+                        if (_latestUpdateResults.TryGetValue(outcome.Server.Id, out var result))
+                        {
+                            var refreshedResult = result with { RebootRequired = rebootRequired };
+                            _latestUpdateResults[outcome.Server.Id] = refreshedResult;
+                            if (!rebootRequired)
+                            {
+                                _rebootScheduledServers.TryRemove(outcome.Server.Id, out _);
+                            }
+
+                            RefreshServerUpdateResult(outcome.Server.Id, refreshedResult);
+                        }
+
+                        if (rebootRequired)
+                        {
+                            rebootTargets.Add(outcome.Server);
+                        }
+                    }
+                    catch (Exception exception)
+                    {
+                        progress.AppendOutput(string.Format(
+                            AppLocalizer.Get("RebootCheckFailed"), outcome.Server.Name, exception.Message) +
+                            Environment.NewLine);
+                    }
                 }
 
                 var summary = FormatOperationSummary(outcomes);
@@ -1001,6 +1130,10 @@ internal sealed class MainForm : Form
 
         progress.ShowDialog(this);
         SetOperationInProgress(false);
+        if (rebootTargets.Count > 0)
+        {
+            await OfferRebootAsync(rebootTargets, this);
+        }
     }
 
     private async Task RunPackageUpgradeForServerAsync(
@@ -1008,7 +1141,8 @@ internal sealed class MainForm : Form
         CancellationToken cancellationToken,
         UpdateExecutionForm progress,
         ConcurrentDictionary<Guid, byte> connectedServers,
-        ConcurrentDictionary<Guid, byte> attemptedServers)
+        ConcurrentDictionary<Guid, byte> attemptedServers,
+        ConcurrentDictionary<Guid, IReadOnlyList<string>> phasedPackages)
     {
         var startedAt = DateTimeOffset.UtcNow;
         var updateCount = _latestUpdateResults.TryGetValue(server.Id, out var updateResult)
@@ -1047,16 +1181,28 @@ internal sealed class MainForm : Form
             var running = string.Format(AppLocalizer.Get("UpdateServerRunning"), server.Name, updateCount) + Environment.NewLine;
             progress.AppendOutput(running);
             output.Append(running);
-            var commandResult = await _updateExecutionService.UpgradeAsync(
-                session,
-                server,
-                chunk =>
-                {
-                    var prefixed = $"[{server.Name}] {chunk}";
-                    output.Append(prefixed);
-                    progress.AppendOutput(prefixed);
-                },
-                cancellationToken);
+            var formattedOutput = new PrefixedOperationOutput(server.Name, text =>
+            {
+                output.Append(text);
+                progress.AppendOutput(text);
+            });
+            SshCommandResult commandResult;
+            try
+            {
+                commandResult = await _updateExecutionService.UpgradeAsync(
+                    session, server, formattedOutput.Append, cancellationToken);
+            }
+            finally
+            {
+                formattedOutput.Flush();
+            }
+
+            var deferredPackages = _updateExecutionService.ParsePhasedUpdatePackages(commandResult);
+            if (deferredPackages.Count > 0)
+            {
+                phasedPackages[server.Id] = deferredPackages;
+            }
+
             exitStatus = commandResult.ExitStatus;
             status = HistoryOperationResults.Succeeded;
             var completed = string.Format(AppLocalizer.Get("UpdateServerCompleted"), server.Name) + Environment.NewLine;
@@ -1089,6 +1235,323 @@ internal sealed class MainForm : Form
                 updateCount,
                 updateResult?.SecurityUpdateCount);
         }
+    }
+
+    private async Task OfferPhasedUpdatesAsync(
+        ServerProfile server,
+        IReadOnlyList<string> packages,
+        UpdateExecutionForm progress,
+        CancellationToken cancellationToken)
+    {
+        var packageList = string.Join(Environment.NewLine, packages.Select(package => $"• {package}"));
+        var message = string.Format(AppLocalizer.Get("PhasedUpdatesPrompt"), server.Name, packageList);
+        if (MessageBox.Show(progress, message, AppLocalizer.Get("AppTitle"),
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+        {
+            progress.AppendOutput(string.Format(
+                AppLocalizer.Get("PhasedUpdatesDeclined"), server.Name, string.Join(", ", packages)) +
+                Environment.NewLine);
+            return;
+        }
+
+        var startedAt = DateTimeOffset.UtcNow;
+        var output = new OperationOutputBuffer();
+        var status = HistoryOperationResults.Failed;
+        int? exitStatus = null;
+        string? error = null;
+        try
+        {
+            using var session = await _sshConnectionService.ConnectAsync(
+                server, ConfirmUnknownHostKey, cancellationToken);
+            if (session.NewlyTrustedFingerprint is { Length: > 0 } fingerprint &&
+                !await InvokeOnUiAsync(() => SaveTrustedFingerprintAsync(server, fingerprint)))
+            {
+                throw new IOException("The trusted host key could not be saved.");
+            }
+
+            var formattedOutput = new PrefixedOperationOutput(server.Name, text =>
+            {
+                output.Append(text);
+                progress.AppendOutput(text);
+            });
+            SshCommandResult commandResult;
+            try
+            {
+                commandResult = await _updateExecutionService.UpgradeAsync(
+                    session, server, formattedOutput.Append, cancellationToken, includePhasedUpdates: true);
+            }
+            finally
+            {
+                formattedOutput.Flush();
+            }
+
+            exitStatus = commandResult.ExitStatus;
+            status = HistoryOperationResults.Succeeded;
+            progress.AppendOutput(string.Format(
+                AppLocalizer.Get("PhasedUpdatesApplied"), server.Name) + Environment.NewLine);
+        }
+        catch (Exception exception)
+        {
+            if (exception is PackageUpgradeFailedException commandFailure)
+            {
+                exitStatus = commandFailure.ExitStatus;
+            }
+
+            error = exception.Message;
+            status = exception is OperationCanceledException || cancellationToken.IsCancellationRequested
+                ? HistoryOperationResults.Cancelled
+                : HistoryOperationResults.Failed;
+            progress.AppendOutput(string.Format(
+                AppLocalizer.Get("PhasedUpdatesFailed"), server.Name, exception.Message) +
+                Environment.NewLine);
+        }
+        finally
+        {
+            await RecordHistoryBestEffortAsync(
+                server,
+                HistoryOperationTypes.PackageUpgrade,
+                startedAt,
+                status,
+                exitStatus,
+                output.ToString(),
+                error,
+                packages.Count);
+        }
+    }
+
+    private async Task OfferAutoremoveAsync(
+        ServerProfile server,
+        UpdateExecutionForm progress,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<string> packages;
+        try
+        {
+            using var session = await _sshConnectionService.ConnectAsync(
+                server, ConfirmUnknownHostKey, cancellationToken);
+            if (session.NewlyTrustedFingerprint is { Length: > 0 } fingerprint &&
+                !await InvokeOnUiAsync(() => SaveTrustedFingerprintAsync(server, fingerprint)))
+            {
+                throw new IOException("The trusted host key could not be saved.");
+            }
+
+            packages = await _updateExecutionService.PreviewAutoremoveAsync(session, server, cancellationToken);
+        }
+        catch (NotSupportedException)
+        {
+            return;
+        }
+        catch (Exception exception)
+        {
+            progress.AppendOutput(string.Format(
+                AppLocalizer.Get("AutoremovePreviewFailed"), server.Name, exception.Message) +
+                Environment.NewLine);
+            return;
+        }
+
+        if (packages.Count == 0)
+        {
+            return;
+        }
+
+        var packageList = string.Join(Environment.NewLine, packages.Select(package => $"• {package}"));
+        var message = string.Format(AppLocalizer.Get("AutoremovePrompt"), server.Name, packageList);
+        if (MessageBox.Show(progress, message, AppLocalizer.Get("AppTitle"),
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+        {
+            progress.AppendOutput(string.Format(
+                AppLocalizer.Get("AutoremoveDeclined"), server.Name) + Environment.NewLine);
+            return;
+        }
+
+        var startedAt = DateTimeOffset.UtcNow;
+        var output = new OperationOutputBuffer();
+        var status = HistoryOperationResults.Failed;
+        int? exitStatus = null;
+        string? error = null;
+        try
+        {
+            using var session = await _sshConnectionService.ConnectAsync(
+                server, ConfirmUnknownHostKey, cancellationToken);
+            if (session.NewlyTrustedFingerprint is { Length: > 0 } fingerprint &&
+                !await InvokeOnUiAsync(() => SaveTrustedFingerprintAsync(server, fingerprint)))
+            {
+                throw new IOException("The trusted host key could not be saved.");
+            }
+
+            var formattedOutput = new PrefixedOperationOutput(server.Name, text =>
+            {
+                output.Append(text);
+                progress.AppendOutput(text);
+            });
+            SshCommandResult commandResult;
+            try
+            {
+                commandResult = await _updateExecutionService.AutoremoveAsync(
+                    session, server, formattedOutput.Append, cancellationToken);
+            }
+            finally
+            {
+                formattedOutput.Flush();
+            }
+
+            exitStatus = commandResult.ExitStatus;
+            status = HistoryOperationResults.Succeeded;
+            progress.AppendOutput(string.Format(
+                AppLocalizer.Get("AutoremoveCompleted"), server.Name) + Environment.NewLine);
+        }
+        catch (Exception exception)
+        {
+            if (exception is PackageUpgradeFailedException commandFailure)
+            {
+                exitStatus = commandFailure.ExitStatus;
+            }
+
+            error = exception.Message;
+            status = exception is OperationCanceledException || cancellationToken.IsCancellationRequested
+                ? HistoryOperationResults.Cancelled
+                : HistoryOperationResults.Failed;
+            progress.AppendOutput(string.Format(
+                AppLocalizer.Get("AutoremoveFailed"), server.Name, exception.Message) +
+                Environment.NewLine);
+        }
+        finally
+        {
+            await RecordHistoryBestEffortAsync(
+                server,
+                HistoryOperationTypes.Autoremove,
+                startedAt,
+                status,
+                exitStatus,
+                output.ToString(),
+                error,
+                packages.Count);
+        }
+    }
+
+    private async Task OfferRebootAsync(IReadOnlyList<ServerProfile> servers, IWin32Window owner)
+    {
+        var targets = servers
+            .Where(server => !_rebootScheduledServers.ContainsKey(server.Id))
+            .DistinctBy(server => server.Id)
+            .ToArray();
+        if (targets.Length == 0)
+        {
+            return;
+        }
+
+        var message = string.Format(
+            AppLocalizer.Get("ConfirmReboot"),
+            string.Join(Environment.NewLine, targets.Select(server => $"• {server.Name} ({server.Host})")));
+        if (MessageBox.Show(owner, message, AppLocalizer.Get("AppTitle"),
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+        {
+            return;
+        }
+
+        await RunServerRebootsAsync(targets);
+    }
+
+    private async Task RunServerRebootsAsync(IReadOnlyList<ServerProfile> servers)
+    {
+        SetOperationInProgress(true);
+        using var progress = new UpdateExecutionForm();
+        progress.SetStatus(AppLocalizer.Get("RebootInProgress"));
+        var connectedServers = new ConcurrentDictionary<Guid, byte>();
+        progress.Shown += async (_, _) =>
+        {
+            try
+            {
+                var outcomes = await RunServerOperationsAsync(
+                    servers,
+                    async (server, cancellationToken) =>
+                    {
+                        var startedAt = DateTimeOffset.UtcNow;
+                        var output = new OperationOutputBuffer();
+                        var status = HistoryOperationResults.Failed;
+                        string? error = null;
+                        try
+                        {
+                            var connecting = string.Format(
+                                AppLocalizer.Get("UpdateServerConnecting"), server.Name, server.Host) +
+                                Environment.NewLine;
+                            progress.AppendOutput(connecting);
+                            output.Append(connecting);
+                            using var session = await _sshConnectionService.ConnectAsync(
+                                server, ConfirmUnknownHostKey, cancellationToken);
+                            connectedServers.TryAdd(server.Id, 0);
+                            if (session.NewlyTrustedFingerprint is { Length: > 0 } fingerprint &&
+                                !await InvokeOnUiAsync(() => SaveTrustedFingerprintAsync(server, fingerprint)))
+                            {
+                                throw new IOException("The trusted host key could not be saved.");
+                            }
+
+                            var formattedOutput = new PrefixedOperationOutput(server.Name, text =>
+                            {
+                                output.Append(text);
+                                progress.AppendOutput(text);
+                            });
+                            try
+                            {
+                                var commandResult = await _updateExecutionService.RebootAsync(
+                                    session, server, cancellationToken);
+                                formattedOutput.Append(commandResult.Output);
+                                formattedOutput.Append(commandResult.Error);
+                            }
+                            finally
+                            {
+                                formattedOutput.Flush();
+                            }
+
+                            status = HistoryOperationResults.Succeeded;
+                            _rebootScheduledServers.TryAdd(server.Id, 0);
+                            if (_latestUpdateResults.TryGetValue(server.Id, out var latestResult))
+                            {
+                                await InvokeOnUiAsync(() => RefreshServerUpdateResult(server.Id, latestResult));
+                            }
+
+                            var scheduled = string.Format(
+                                AppLocalizer.Get("RebootScheduledForServer"), server.Name) +
+                                Environment.NewLine;
+                            progress.AppendOutput(scheduled);
+                            output.Append(scheduled);
+                        }
+                        catch (Exception exception)
+                        {
+                            error = exception.Message;
+                            status = exception is OperationCanceledException || cancellationToken.IsCancellationRequested
+                                ? HistoryOperationResults.Cancelled
+                                : HistoryOperationResults.Failed;
+                            throw;
+                        }
+                        finally
+                        {
+                            await RecordHistoryBestEffortAsync(
+                                server,
+                                HistoryOperationTypes.Reboot,
+                                startedAt,
+                                status,
+                                null,
+                                output.ToString(),
+                                error);
+                        }
+                    },
+                    progress.CancellationToken,
+                    outcome => AppendOperationOutcome(progress, outcome));
+                var summary = FormatOperationSummary(outcomes);
+                progress.Complete(summary);
+                _status.Text = summary;
+            }
+            catch (Exception exception)
+            {
+                progress.AppendOutput(exception.Message + Environment.NewLine);
+                progress.Complete(AppLocalizer.Get("RebootFailed"));
+                _status.Text = AppLocalizer.Get("RebootFailed");
+            }
+        };
+
+        progress.ShowDialog(this);
+        SetOperationInProgress(false);
     }
 
     private async Task<IReadOnlyList<ServerOperationOutcome>> RunServerOperationsAsync(
@@ -1544,9 +2007,13 @@ internal sealed class MainForm : Form
         row.Cells["Connection"].Value = AppLocalizer.Get("StatusConnected");
         row.Cells["Updates"].Value = result.Packages.Count.ToString(AppLocalizer.CurrentCulture);
         row.Cells["Security"].Value = FormatSecurityCount(result.SecurityUpdateCount);
-        row.Cells["Reboot"].Value = AppLocalizer.Get(result.RebootRequired ? "Yes" : "No");
+        row.Cells["Reboot"].Value = AppLocalizer.Get(_rebootScheduledServers.ContainsKey(serverId)
+            ? "RebootScheduled"
+            : result.RebootRequired ? "Yes" : "No");
         row.Cells["Checked"].Value = result.CheckedAt.ToLocalTime().ToString("g", AppLocalizer.CurrentCulture);
-        row.Cells["Operation"].Value = FormatUpdateSummary(result);
+        row.Cells["Operation"].Value = _staleUpdateResults.ContainsKey(serverId)
+            ? AppLocalizer.Get("UpdateResultStale")
+            : FormatUpdateSummary(result);
     }
 
     private async void AddServerClicked(object? sender, EventArgs e)
@@ -1562,6 +2029,8 @@ internal sealed class MainForm : Form
         if (await SaveInventoryAsync(updatedServers, editor.Profile.Id))
         {
             _latestUpdateResults.TryRemove(editor.Profile.Id, out _);
+            _staleUpdateResults.TryRemove(editor.Profile.Id, out _);
+            _rebootScheduledServers.TryRemove(editor.Profile.Id, out _);
             RefreshRows(editor.Profile.Id);
             ApplyFilters();
             _status.Text = AppLocalizer.Get("ServerSaved");
@@ -1589,6 +2058,8 @@ internal sealed class MainForm : Form
         if (await SaveInventoryAsync(updatedServers, editor.Profile.Id))
         {
             _latestUpdateResults.TryRemove(editor.Profile.Id, out _);
+            _staleUpdateResults.TryRemove(editor.Profile.Id, out _);
+            _rebootScheduledServers.TryRemove(editor.Profile.Id, out _);
             RefreshRows(editor.Profile.Id);
             ApplyFilters();
             _status.Text = AppLocalizer.Get("ServerSaved");
@@ -1617,6 +2088,8 @@ internal sealed class MainForm : Form
         }
 
         _latestUpdateResults.TryRemove(selected.Id, out _);
+        _rebootScheduledServers.TryRemove(selected.Id, out _);
+        _staleUpdateResults.TryRemove(selected.Id, out _);
 
         var cleanupFailed = false;
         foreach (var kind in Enum.GetValues<CredentialKind>())

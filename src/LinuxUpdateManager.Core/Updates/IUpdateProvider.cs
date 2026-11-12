@@ -14,7 +14,13 @@ internal interface IUpdateProvider
     Task<SshCommandResult> UpgradeAsync(
         SshConnectionSession session,
         ServerProfile server,
+        bool includePhasedUpdates,
         Action<string>? outputReceived,
+        CancellationToken cancellationToken);
+
+    Task<bool> CheckRebootRequiredAsync(
+        SshConnectionSession session,
+        ServerProfile server,
         CancellationToken cancellationToken);
 }
 

@@ -33,11 +33,7 @@ internal sealed class DnfUpdateProvider(PrivilegeElevationService privilegeEleva
         }
 
         var packages = ParsePackageUpdates(check.Output);
-        var rebootCheck = await session.ExecuteAsync(
-            "if command -v needs-restarting >/dev/null 2>&1; then needs-restarting -r >/dev/null 2>&1; result=$?; if test $result -eq 1; then printf yes; else printf no; fi; elif test -f /var/run/reboot-required; then printf yes; else printf no; fi",
-            cancellationToken: cancellationToken);
-        UpdateDetectionService.EnsureSuccess(rebootCheck, "Could not determine whether the server requires a reboot.");
-        var rebootRequired = rebootCheck.Output.Trim().Equals("yes", StringComparison.OrdinalIgnoreCase);
+        var rebootRequired = await CheckRebootRequiredAsync(session, server, cancellationToken);
         int? securityCount = packages.Count == 0 ? 0 : null;
         return new UpdateProviderResult(packages, securityCount, rebootRequired);
     }
@@ -45,6 +41,7 @@ internal sealed class DnfUpdateProvider(PrivilegeElevationService privilegeEleva
     public Task<SshCommandResult> UpgradeAsync(
         SshConnectionSession session,
         ServerProfile server,
+        bool includePhasedUpdates,
         Action<string>? outputReceived,
         CancellationToken cancellationToken)
     {
@@ -55,6 +52,18 @@ internal sealed class DnfUpdateProvider(PrivilegeElevationService privilegeEleva
             cancellationToken,
             UpgradeTimeout,
             outputReceived);
+    }
+
+    public async Task<bool> CheckRebootRequiredAsync(
+        SshConnectionSession session,
+        ServerProfile server,
+        CancellationToken cancellationToken)
+    {
+        var rebootCheck = await session.ExecuteAsync(
+            "if command -v needs-restarting >/dev/null 2>&1; then needs-restarting -r >/dev/null 2>&1; result=$?; if test $result -eq 1; then printf yes; else printf no; fi; elif test -f /var/run/reboot-required; then printf yes; else printf no; fi",
+            cancellationToken: cancellationToken);
+        UpdateDetectionService.EnsureSuccess(rebootCheck, "Could not determine whether the server requires a reboot.");
+        return rebootCheck.Output.Trim().Equals("yes", StringComparison.OrdinalIgnoreCase);
     }
 
     public static IReadOnlyList<PackageUpdate> ParsePackageUpdates(string output)

@@ -114,7 +114,24 @@
   <data name="PackageColumnCandidate" xml:space="preserve"><value>Candidate version</value></data>
   <data name="PackageColumnSecurity" xml:space="preserve"><value>Security</value></data>
   <data name="PackageColumnRepository" xml:space="preserve"><value>Repository</value></data>
-  <data name="ConfirmUpdate" xml:space="preserve"><value>Install {0} package update(s) on {1} server(s)? The app will not run distribution upgrades or reboot servers.</value></data>
+  <data name="ConfirmUpdate" xml:space="preserve"><value>Install {0} package update(s) on {1} server(s)? Distribution upgrades are not run. APT may install new dependencies but will not remove packages. The app will ask separately before applying phased updates, removing unused packages, or scheduling a reboot.</value></data>
+  <data name="RebootServer" xml:space="preserve"><value>Reboot</value></data>
+  <data name="NoRebootRequired" xml:space="preserve"><value>None of the selected servers is currently marked as requiring a reboot.</value></data>
+  <data name="ConfirmReboot" xml:space="preserve"><value>Schedule a reboot in one minute for these servers? Save any active work first.&#10;&#10;{0}</value></data>
+  <data name="RebootInProgress" xml:space="preserve"><value>Scheduling server reboots…</value></data>
+  <data name="RebootScheduledForServer" xml:space="preserve"><value>[{0}] Reboot scheduled in one minute.</value></data>
+  <data name="RebootScheduled" xml:space="preserve"><value>Scheduled</value></data>
+  <data name="RebootCheckFailed" xml:space="preserve"><value>[{0}] Could not check reboot status after updates: {1}</value></data>
+  <data name="RebootFailed" xml:space="preserve"><value>Could not schedule one or more reboots.</value></data>
+  <data name="PhasedUpdatesPrompt" xml:space="preserve"><value>APT deferred these upgrades on {0} because of phased rollout. Apply them now anyway?&#10;&#10;{1}</value></data>
+  <data name="PhasedUpdatesDeclined" xml:space="preserve"><value>[{0}] Left phased updates deferred: {1}</value></data>
+  <data name="PhasedUpdatesApplied" xml:space="preserve"><value>[{0}] Phased updates applied.</value></data>
+  <data name="PhasedUpdatesFailed" xml:space="preserve"><value>[{0}] Could not apply phased updates: {1}</value></data>
+  <data name="AutoremovePrompt" xml:space="preserve"><value>APT reports these automatically installed packages are no longer needed on {0}. Remove them now?&#10;&#10;{1}</value></data>
+  <data name="AutoremoveDeclined" xml:space="preserve"><value>[{0}] Left unused packages installed.</value></data>
+  <data name="AutoremovePreviewFailed" xml:space="preserve"><value>[{0}] Could not check unused packages: {1}</value></data>
+  <data name="AutoremoveCompleted" xml:space="preserve"><value>[{0}] Unused package removal completed.</value></data>
+  <data name="AutoremoveFailed" xml:space="preserve"><value>[{0}] Unused package removal failed: {1}</value></data>
   <data name="NoUpdatesToInstall" xml:space="preserve"><value>No selected server has packages available from its latest update check.</value></data>
   <data name="UpdateProgressTitle" xml:space="preserve"><value>Package update operation</value></data>
   <data name="UpdateConnecting" xml:space="preserve"><value>Connecting to selected servers…</value></data>
@@ -152,6 +169,8 @@
   <data name="HistoryOperationPrivilegeCheck" xml:space="preserve"><value>Privilege check</value></data>
   <data name="HistoryOperationUpdateCheck" xml:space="preserve"><value>Update check</value></data>
   <data name="HistoryOperationPackageUpgrade" xml:space="preserve"><value>Package upgrade</value></data>
+  <data name="HistoryOperationAutoremove" xml:space="preserve"><value>Remove unused packages</value></data>
+  <data name="HistoryOperationReboot" xml:space="preserve"><value>Schedule reboot</value></data>
   <data name="HistoryResultSucceeded" xml:space="preserve"><value>Succeeded</value></data>
   <data name="HistoryResultFailed" xml:space="preserve"><value>Failed</value></data>
   <data name="HistoryResultCancelled" xml:space="preserve"><value>Cancelled</value></data>

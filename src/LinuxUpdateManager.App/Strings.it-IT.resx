@@ -114,7 +114,24 @@
   <data name="PackageColumnCandidate" xml:space="preserve"><value>Versione proposta</value></data>
   <data name="PackageColumnSecurity" xml:space="preserve"><value>Sicurezza</value></data>
   <data name="PackageColumnRepository" xml:space="preserve"><value>Repository</value></data>
-  <data name="ConfirmUpdate" xml:space="preserve"><value>Installare {0} aggiornamenti di pacchetti su {1} server? L'app non eseguirà aggiornamenti completi della distribuzione né riavvierà i server.</value></data>
+  <data name="ConfirmUpdate" xml:space="preserve"><value>Installare {0} aggiornamenti di pacchetti su {1} server? Non vengono eseguiti aggiornamenti completi della distribuzione. APT può installare nuove dipendenze ma non rimuove pacchetti. L'app chiederà separatamente prima di applicare aggiornamenti graduali, rimuovere pacchetti inutilizzati o pianificare un riavvio.</value></data>
+  <data name="RebootServer" xml:space="preserve"><value>Riavvia</value></data>
+  <data name="NoRebootRequired" xml:space="preserve"><value>Nessuno dei server selezionati risulta attualmente da riavviare.</value></data>
+  <data name="ConfirmReboot" xml:space="preserve"><value>Pianificare il riavvio tra un minuto per questi server? Prima salva il lavoro in corso.&#10;&#10;{0}</value></data>
+  <data name="RebootInProgress" xml:space="preserve"><value>Pianificazione dei riavvii…</value></data>
+  <data name="RebootScheduledForServer" xml:space="preserve"><value>[{0}] Riavvio pianificato tra un minuto.</value></data>
+  <data name="RebootScheduled" xml:space="preserve"><value>Pianificato</value></data>
+  <data name="RebootCheckFailed" xml:space="preserve"><value>[{0}] Impossibile verificare la necessità di riavvio dopo gli aggiornamenti: {1}</value></data>
+  <data name="RebootFailed" xml:space="preserve"><value>Impossibile pianificare uno o più riavvii.</value></data>
+  <data name="PhasedUpdatesPrompt" xml:space="preserve"><value>APT ha rinviato questi aggiornamenti su {0} a causa del rilascio graduale. Vuoi applicarli comunque?&#10;&#10;{1}</value></data>
+  <data name="PhasedUpdatesDeclined" xml:space="preserve"><value>[{0}] Aggiornamenti graduali lasciati in attesa: {1}</value></data>
+  <data name="PhasedUpdatesApplied" xml:space="preserve"><value>[{0}] Aggiornamenti graduali applicati.</value></data>
+  <data name="PhasedUpdatesFailed" xml:space="preserve"><value>[{0}] Impossibile applicare gli aggiornamenti graduali: {1}</value></data>
+  <data name="AutoremovePrompt" xml:space="preserve"><value>APT segnala che questi pacchetti installati automaticamente non sono più necessari su {0}. Vuoi rimuoverli?&#10;&#10;{1}</value></data>
+  <data name="AutoremoveDeclined" xml:space="preserve"><value>[{0}] Pacchetti inutilizzati lasciati installati.</value></data>
+  <data name="AutoremovePreviewFailed" xml:space="preserve"><value>[{0}] Impossibile verificare i pacchetti inutilizzati: {1}</value></data>
+  <data name="AutoremoveCompleted" xml:space="preserve"><value>[{0}] Rimozione dei pacchetti inutilizzati completata.</value></data>
+  <data name="AutoremoveFailed" xml:space="preserve"><value>[{0}] Rimozione dei pacchetti inutilizzati non riuscita: {1}</value></data>
   <data name="NoUpdatesToInstall" xml:space="preserve"><value>Nessun server selezionato ha pacchetti disponibili secondo l'ultima verifica.</value></data>
   <data name="UpdateProgressTitle" xml:space="preserve"><value>Operazione di aggiornamento pacchetti</value></data>
   <data name="UpdateConnecting" xml:space="preserve"><value>Connessione ai server selezionati…</value></data>
@@ -152,6 +169,8 @@
   <data name="HistoryOperationPrivilegeCheck" xml:space="preserve"><value>Verifica privilegi</value></data>
   <data name="HistoryOperationUpdateCheck" xml:space="preserve"><value>Verifica aggiornamenti</value></data>
   <data name="HistoryOperationPackageUpgrade" xml:space="preserve"><value>Aggiornamento pacchetti</value></data>
+  <data name="HistoryOperationAutoremove" xml:space="preserve"><value>Rimozione pacchetti inutilizzati</value></data>
+  <data name="HistoryOperationReboot" xml:space="preserve"><value>Pianifica riavvio</value></data>
   <data name="HistoryResultSucceeded" xml:space="preserve"><value>Riuscita</value></data>
   <data name="HistoryResultFailed" xml:space="preserve"><value>Non riuscita</value></data>
   <data name="HistoryResultCancelled" xml:space="preserve"><value>Annullata</value></data>
