@@ -212,7 +212,7 @@ public sealed class ApplicationUpdateTests
     {
         ApplicationUpdateInstaller.WaitForParentProcessExit(
             int.MaxValue,
-            Path.Combine(Path.GetTempPath(), "LinuxUpdateManager.App.exe"));
+            Path.Combine(Path.GetTempPath(), "LinuxUpdateManager.exe"));
     }
 
     [Fact]

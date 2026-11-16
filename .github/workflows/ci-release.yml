@@ -112,7 +112,7 @@ jobs:
 
       - name: Publish self-contained Windows x64 application
         if: steps.prepare.outputs.release == 'true'
-        run: dotnet publish src/LinuxUpdateManager.App/LinuxUpdateManager.App.csproj --configuration Release --runtime win-x64 --self-contained true --no-restore --output "$RUNNER_TEMP/lum-publish" -p:Version="${{ steps.prepare.outputs.version }}" -p:DebugType=none
+        run: dotnet publish src/LinuxUpdateManager.App/LinuxUpdateManager.App.csproj --configuration Release --runtime win-x64 --self-contained true --no-restore --output "$RUNNER_TEMP/lum-publish" -p:AssemblyName=LinuxUpdateManager -p:RootNamespace=LinuxUpdateManager.App -p:Version="${{ steps.prepare.outputs.version }}" -p:DebugType=none
         shell: bash
 
       - name: Create ZIP package with license notices
@@ -123,13 +123,27 @@ jobs:
           $archivePath = Join-Path $env:RUNNER_TEMP 'LinuxUpdateManager-win-x64.zip'
           New-Item -ItemType Directory -Path $packageDirectory | Out-Null
           Copy-Item -Path (Join-Path $publishDirectory '*') -Destination $packageDirectory -Recurse
+          Copy-Item -LiteralPath (Join-Path $packageDirectory 'LinuxUpdateManager.exe') -Destination (Join-Path $packageDirectory 'LinuxUpdateManager.App.exe')
+          Copy-Item -LiteralPath (Join-Path $packageDirectory 'LinuxUpdateManager.dll') -Destination (Join-Path $packageDirectory 'LinuxUpdateManager.App.dll')
           Copy-Item -LiteralPath @('LICENSE', 'NOTICE') -Destination $packageDirectory
           Compress-Archive -Path (Join-Path $packageDirectory '*') -DestinationPath $archivePath -CompressionLevel Fastest
           Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::Open($archivePath, [System.IO.Compression.ZipArchiveMode]::Update)
+          try {
+            foreach ($compatibilityEntry in @('LinuxUpdateManager.App.exe', 'LinuxUpdateManager.App.dll')) {
+              $entry = $archive.GetEntry($compatibilityEntry)
+              if ($null -eq $entry) {
+                throw "Release ZIP is missing compatibility entry '$compatibilityEntry'."
+              }
+              $entry.ExternalAttributes = [int][System.IO.FileAttributes]::Hidden
+            }
+          } finally {
+            $archive.Dispose()
+          }
           $archive = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
           try {
             $entryNames = @($archive.Entries | ForEach-Object { $_.FullName })
-            foreach ($requiredEntry in @('LinuxUpdateManager.App.exe', 'LinuxUpdateManager.App.dll', 'LICENSE', 'NOTICE')) {
+            foreach ($requiredEntry in @('LinuxUpdateManager.exe', 'LinuxUpdateManager.dll', 'LinuxUpdateManager.App.exe', 'LinuxUpdateManager.App.dll', 'LICENSE', 'NOTICE')) {
               if ($entryNames -notcontains $requiredEntry) {
                 throw "Release ZIP is missing required entry '$requiredEntry'."
               }

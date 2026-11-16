@@ -6,6 +6,7 @@ static class Program
     static async Task<int> Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        ApplicationUpdateInstaller.HideLegacyCompatibilityFiles();
         if (ApplicationUpdateInstaller.IsUpdateCommand(args))
         {
             return ApplicationUpdateInstaller.ApplyUpdate(args);

@@ -9,8 +9,10 @@ namespace LinuxUpdateManager.App;
 
 internal sealed class ApplicationUpdateInstaller
 {
-    private const string ApplicationExecutableName = "LinuxUpdateManager.App.exe";
-    private const string ApplicationAssemblyName = "LinuxUpdateManager.App.dll";
+    private const string ApplicationExecutableName = "LinuxUpdateManager.exe";
+    private const string ApplicationAssemblyName = "LinuxUpdateManager.dll";
+    private const string LegacyApplicationExecutableName = "LinuxUpdateManager.App.exe";
+    private const string LegacyApplicationAssemblyName = "LinuxUpdateManager.App.dll";
     private const long MaximumPackageBytes = 1_073_741_824;
     private const long MaximumExpandedBytes = 2_147_483_648;
     private const int MaximumArchiveEntries = 20_000;
@@ -25,7 +27,23 @@ internal sealed class ApplicationUpdateInstaller
     public async Task StartAsync(ApplicationUpdateRelease release, CancellationToken cancellationToken = default)
     {
         var installDirectory = NormalizeDirectory(AppContext.BaseDirectory);
+        var processPath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(processPath))
+        {
+            throw new InvalidOperationException("The current application executable path could not be determined.");
+        }
+
+        var executableName = Path.GetFileName(processPath);
+        if (string.IsNullOrWhiteSpace(executableName))
+        {
+            throw new InvalidOperationException("The current application executable name could not be determined.");
+        }
+
+        var processDirectory = NormalizeDirectory(Path.GetDirectoryName(processPath)
+            ?? throw new InvalidOperationException("The current application executable has no parent directory."));
         if (!Directory.Exists(installDirectory) ||
+            executableName is not (ApplicationExecutableName or LegacyApplicationExecutableName) ||
+            !string.Equals(processDirectory, installDirectory, StringComparison.OrdinalIgnoreCase) ||
             !File.Exists(Path.Combine(installDirectory, ApplicationExecutableName)) ||
             !File.Exists(Path.Combine(installDirectory, ApplicationAssemblyName)))
         {
@@ -48,7 +66,7 @@ internal sealed class ApplicationUpdateInstaller
 
             var bootstrapDirectory = Path.Combine(workDirectory, "bootstrap");
             CopyDirectory(installDirectory, bootstrapDirectory);
-            var bootstrapExecutable = Path.Combine(bootstrapDirectory, ApplicationExecutableName);
+            var bootstrapExecutable = Path.Combine(bootstrapDirectory, executableName);
             if (!File.Exists(bootstrapExecutable))
             {
                 throw new InvalidDataException("The external update helper could not be prepared.");
@@ -66,6 +84,7 @@ internal sealed class ApplicationUpdateInstaller
             startInfo.ArgumentList.Add(Path.Combine(downloadDirectory, ApplicationUpdateService.ManifestAssetName));
             startInfo.ArgumentList.Add(Path.Combine(downloadDirectory, ApplicationUpdateService.SignatureAssetName));
             startInfo.ArgumentList.Add(workDirectory);
+            startInfo.ArgumentList.Add(executableName);
 
             if (Process.Start(startInfo) is null)
             {
@@ -103,7 +122,8 @@ internal sealed class ApplicationUpdateInstaller
 
     private static void ApplyUpdateCore(string[] args)
     {
-        if (args.Length != 7 || !int.TryParse(args[1], out var parentProcessId) || parentProcessId <= 0)
+        if (args.Length != 8 || !int.TryParse(args[1], out var parentProcessId) || parentProcessId <= 0 ||
+            args[7] is not (ApplicationExecutableName or LegacyApplicationExecutableName))
         {
             throw new ArgumentException("The update helper arguments are invalid.");
         }
@@ -126,9 +146,12 @@ internal sealed class ApplicationUpdateInstaller
             throw new InvalidOperationException("The update staging folder is invalid.");
         }
 
-        var applicationPath = Path.Combine(installDirectory, ApplicationExecutableName);
+        var applicationPath = Path.Combine(installDirectory, args[7]);
         var currentAssemblyPath = Path.Combine(installDirectory, ApplicationAssemblyName);
-        if (!Directory.Exists(installDirectory) || !File.Exists(applicationPath) || !File.Exists(currentAssemblyPath))
+        if (!Directory.Exists(installDirectory) ||
+            !File.Exists(Path.Combine(installDirectory, ApplicationExecutableName)) ||
+            !File.Exists(applicationPath) ||
+            !File.Exists(currentAssemblyPath))
         {
             throw new InvalidOperationException("The existing application installation could not be found.");
         }
@@ -174,8 +197,12 @@ internal sealed class ApplicationUpdateInstaller
         ExtractPackage(packagePath, payloadDirectory);
         var updatedExecutable = Path.Combine(payloadDirectory, ApplicationExecutableName);
         var updatedAssembly = Path.Combine(payloadDirectory, ApplicationAssemblyName);
+        var legacyExecutable = Path.Combine(payloadDirectory, LegacyApplicationExecutableName);
+        var legacyAssembly = Path.Combine(payloadDirectory, LegacyApplicationAssemblyName);
         if (!File.Exists(updatedExecutable) || !File.Exists(updatedAssembly) ||
-            ReadAssemblyVersion(updatedAssembly) != updateVersion)
+            !File.Exists(legacyExecutable) || !File.Exists(legacyAssembly) ||
+            ReadAssemblyVersion(updatedAssembly) != updateVersion ||
+            ReadAssemblyVersion(legacyAssembly) != updateVersion)
         {
             throw new InvalidDataException("The signed package does not contain the expected application version.");
         }
@@ -362,9 +389,38 @@ internal sealed class ApplicationUpdateInstaller
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
-            using var source = entry.Open();
-            using var target = new FileStream(targetPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-            source.CopyTo(target);
+            using (var source = entry.Open())
+            using (var target = new FileStream(targetPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                source.CopyTo(target);
+            }
+
+            var entryAttributes = (FileAttributes)(entry.ExternalAttributes & 0xFFFF);
+            if ((entryAttributes & FileAttributes.Hidden) != 0)
+            {
+                File.SetAttributes(targetPath, File.GetAttributes(targetPath) | FileAttributes.Hidden);
+            }
+        }
+    }
+
+    internal static void HideLegacyCompatibilityFiles()
+    {
+        foreach (var fileName in new[] { LegacyApplicationExecutableName, LegacyApplicationAssemblyName })
+        {
+            var filePath = Path.Combine(AppContext.BaseDirectory, fileName);
+            try
+            {
+                if (File.Exists(filePath))
+                {
+                    File.SetAttributes(filePath, File.GetAttributes(filePath) | FileAttributes.Hidden);
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
         }
     }
 
