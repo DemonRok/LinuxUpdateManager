@@ -9,7 +9,7 @@ public sealed class LocalizationTests
     [Fact]
     public void DashboardResourcesProvideEnglishDefaultAndItalianTranslation()
     {
-        var assembly = Assembly.Load("LinuxUpdateManager.App");
+        var assembly = Assembly.Load("LinuxUpdateManager");
         var resources = new ResourceManager("LinuxUpdateManager.App.Strings", assembly);
 
         Assert.Equal("Server Dashboard", resources.GetString("DashboardTitle", CultureInfo.GetCultureInfo("en-US")));
@@ -21,7 +21,7 @@ public sealed class LocalizationTests
     [Fact]
     public void EnglishAndItalianResourcesHaveMatchingKeysAndNonemptyValues()
     {
-        var assembly = Assembly.Load("LinuxUpdateManager.App");
+        var assembly = Assembly.Load("LinuxUpdateManager");
         var resources = new ResourceManager("LinuxUpdateManager.App.Strings", assembly);
         var english = resources.GetResourceSet(CultureInfo.InvariantCulture, true, false)!;
         var italian = resources.GetResourceSet(CultureInfo.GetCultureInfo("it-IT"), true, false)!;
