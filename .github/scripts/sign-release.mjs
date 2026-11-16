@@ -36,12 +36,12 @@ if (!pinnedDer.equals(derivedDer)) {
 }
 
 mkdirSync(assetDirectory, { recursive: true });
-for (const package of [
+for (const releasePackage of [
   { source: packagePath, manifestName: "update-manifest.json", signatureName: "update-manifest.sig" },
   { source: singleFilePackagePath, manifestName: "singlefile-update-manifest.json", signatureName: "singlefile-update-manifest.sig" }
 ]) {
-  const packageAssetPath = path.join(assetDirectory, path.basename(package.source));
-  copyFileSync(package.source, packageAssetPath, constants.COPYFILE_EXCL);
+  const packageAssetPath = path.join(assetDirectory, path.basename(releasePackage.source));
+  copyFileSync(releasePackage.source, packageAssetPath, constants.COPYFILE_EXCL);
 
   const hash = createHash("sha256");
   const packageStream = createReadStream(packageAssetPath);
@@ -57,8 +57,8 @@ for (const package of [
   const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   const signature = sign("RSA-SHA256", manifestBytes, privateKey).toString("base64");
 
-  writeFileSync(path.join(assetDirectory, package.manifestName), manifestBytes, { flag: "wx" });
-  writeFileSync(path.join(assetDirectory, package.signatureName), `${signature}\n`, { flag: "wx" });
+  writeFileSync(path.join(assetDirectory, releasePackage.manifestName), manifestBytes, { flag: "wx" });
+  writeFileSync(path.join(assetDirectory, releasePackage.signatureName), `${signature}\n`, { flag: "wx" });
   writeFileSync(path.join(assetDirectory, `${path.basename(packageAssetPath)}.sha256`), `${sha256}  ${path.basename(packageAssetPath)}\n`, { flag: "wx" });
   console.log(`Created signed release assets for ${path.basename(packageAssetPath)}.`);
 }
