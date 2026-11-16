@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-16
+
+### Fixed
+
+- prevent backup export dialog from blocking
+
 ## [1.1.0] - 2026-11-12
 
 ### Fixed
