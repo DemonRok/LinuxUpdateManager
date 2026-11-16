@@ -7,8 +7,6 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <AssemblyName>LinuxUpdateManager</AssemblyName>
-    <RootNamespace>LinuxUpdateManager.App</RootNamespace>
     <Version>1.1.2</Version>
     <ApplicationIcon>assets\linux-update-manager.ico</ApplicationIcon>
     <Nullable>enable</Nullable>

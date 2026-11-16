@@ -10,9 +10,8 @@ namespace LinuxUpdateManager.App;
 internal sealed class ApplicationUpdateInstaller
 {
     private const string ApplicationExecutableName = "LinuxUpdateManager.exe";
-    private const string ApplicationAssemblyName = "LinuxUpdateManager.dll";
+    private const string ApplicationAssemblyName = "LinuxUpdateManager.App.dll";
     private const string LegacyApplicationExecutableName = "LinuxUpdateManager.App.exe";
-    private const string LegacyApplicationAssemblyName = "LinuxUpdateManager.App.dll";
     private const long MaximumPackageBytes = 1_073_741_824;
     private const long MaximumExpandedBytes = 2_147_483_648;
     private const int MaximumArchiveEntries = 20_000;
@@ -198,11 +197,8 @@ internal sealed class ApplicationUpdateInstaller
         var updatedExecutable = Path.Combine(payloadDirectory, ApplicationExecutableName);
         var updatedAssembly = Path.Combine(payloadDirectory, ApplicationAssemblyName);
         var legacyExecutable = Path.Combine(payloadDirectory, LegacyApplicationExecutableName);
-        var legacyAssembly = Path.Combine(payloadDirectory, LegacyApplicationAssemblyName);
         if (!File.Exists(updatedExecutable) || !File.Exists(updatedAssembly) ||
-            !File.Exists(legacyExecutable) || !File.Exists(legacyAssembly) ||
-            ReadAssemblyVersion(updatedAssembly) != updateVersion ||
-            ReadAssemblyVersion(legacyAssembly) != updateVersion)
+            !File.Exists(legacyExecutable) || ReadAssemblyVersion(updatedAssembly) != updateVersion)
         {
             throw new InvalidDataException("The signed package does not contain the expected application version.");
         }
@@ -405,7 +401,7 @@ internal sealed class ApplicationUpdateInstaller
 
     internal static void HideLegacyCompatibilityFiles()
     {
-        foreach (var fileName in new[] { LegacyApplicationExecutableName, LegacyApplicationAssemblyName })
+        foreach (var fileName in new[] { LegacyApplicationExecutableName })
         {
             var filePath = Path.Combine(AppContext.BaseDirectory, fileName);
             try
