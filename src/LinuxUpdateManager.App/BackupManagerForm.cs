@@ -256,16 +256,19 @@ internal sealed class BackupManagerForm : Form
             return;
         }
 
-        using var dialog = new SaveFileDialog
+        string? filePath;
+        try
         {
-            Title = AppLocalizer.Get("BackupExport"),
-            Filter = AppLocalizer.Get("BackupFileFilter"),
-            DefaultExt = "lum",
-            AddExtension = true,
-            FileName = $"LinuxUpdateManager-backup-{DateTime.Now:yyyy-MM-dd}.lum",
-            OverwritePrompt = true
-        };
-        if (dialog.ShowDialog(this) != DialogResult.OK)
+            filePath = await ShowExportFileDialogAsync();
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(this, exception.Message, AppLocalizer.Get("BackupManagerTitle"),
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+
+        if (filePath is null)
         {
             return;
         }
@@ -288,8 +291,8 @@ internal sealed class BackupManagerForm : Form
         try
         {
             payload = await CreatePayloadAsync(selected.Kind, selectedServers);
-            await _backupService.ExportAsync(dialog.FileName, payload, password);
-            _status.Text = string.Format(AppLocalizer.Get("BackupExportSucceeded"), dialog.FileName);
+            await _backupService.ExportAsync(filePath, payload, password);
+            _status.Text = string.Format(AppLocalizer.Get("BackupExportSucceeded"), filePath);
             MessageBox.Show(this, _status.Text, AppLocalizer.Get("BackupManagerTitle"),
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
@@ -322,6 +325,49 @@ internal sealed class BackupManagerForm : Form
             password = null;
             SetBusy(false);
         }
+    }
+
+    private Task<string?> ShowExportFileDialogAsync()
+    {
+        var completion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ownerHandle = Handle;
+        var dialogThread = new Thread(() =>
+        {
+            try
+            {
+                using var dialog = new SaveFileDialog
+                {
+                    Title = AppLocalizer.Get("BackupExport"),
+                    Filter = AppLocalizer.Get("BackupFileFilter"),
+                    DefaultExt = "lum",
+                    AddExtension = true,
+                    FileName = $"LinuxUpdateManager-backup-{DateTime.Now:yyyy-MM-dd}.lum",
+                    InitialDirectory = AppContext.BaseDirectory,
+                    AutoUpgradeEnabled = true,
+                    RestoreDirectory = true,
+                    OverwritePrompt = true
+                };
+                var result = dialog.ShowDialog(new WindowHandleOwner(ownerHandle));
+                completion.TrySetResult(result == DialogResult.OK ? dialog.FileName : null);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "BackupExportFileDialog"
+        };
+
+        dialogThread.SetApartmentState(ApartmentState.STA);
+        dialogThread.Start();
+        return completion.Task;
+    }
+
+    private sealed class WindowHandleOwner(IntPtr handle) : IWin32Window
+    {
+        public IntPtr Handle { get; } = handle;
     }
 
     private async Task<BackupPayload> CreatePayloadAsync(BackupKind kind, IReadOnlyList<ServerProfile> servers)
