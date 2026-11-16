@@ -6,4 +6,5 @@ public sealed record ApplicationUpdateRelease(
     string ReleaseNotes,
     Uri PackageUri,
     Uri ManifestUri,
-    Uri SignatureUri);
+    Uri SignatureUri,
+    bool SingleFilePackage = false);

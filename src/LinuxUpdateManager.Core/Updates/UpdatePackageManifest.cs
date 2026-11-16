@@ -56,7 +56,8 @@ public sealed record UpdatePackageManifest(
             throw new InvalidDataException("The update manifest tag does not match its version.");
         }
 
-        if (!string.Equals(AssetName, ApplicationUpdateService.PackageAssetName, StringComparison.Ordinal))
+        if (!string.Equals(AssetName, ApplicationUpdateService.PackageAssetName, StringComparison.Ordinal) &&
+            !string.Equals(AssetName, ApplicationUpdateService.SingleFilePackageAssetName, StringComparison.Ordinal))
         {
             throw new InvalidDataException("The update package has an unexpected name.");
         }

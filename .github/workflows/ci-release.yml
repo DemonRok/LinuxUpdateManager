@@ -115,6 +115,11 @@ jobs:
         run: dotnet publish src/LinuxUpdateManager.App/LinuxUpdateManager.App.csproj --configuration Release --runtime win-x64 --self-contained true --no-restore --output "$RUNNER_TEMP/lum-publish" -p:Version="${{ steps.prepare.outputs.version }}" -p:DebugType=none
         shell: bash
 
+      - name: Publish runtime-dependent single-file Windows x64 application
+        if: steps.prepare.outputs.release == 'true'
+        run: dotnet publish src/LinuxUpdateManager.App/LinuxUpdateManager.App.csproj --configuration Release --runtime win-x64 --self-contained false --no-restore --output "$RUNNER_TEMP/lum-singlefile-publish" -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version="${{ steps.prepare.outputs.version }}" -p:DebugType=none
+        shell: bash
+
       - name: Create ZIP package with license notices
         if: steps.prepare.outputs.release == 'true'
         run: |
@@ -153,9 +158,32 @@ jobs:
           }
         shell: pwsh
 
+      - name: Create runtime-dependent single-file ZIP package
+        if: steps.prepare.outputs.release == 'true'
+        run: |
+          $publishDirectory = Join-Path $env:RUNNER_TEMP 'lum-singlefile-publish'
+          $packageDirectory = Join-Path $env:RUNNER_TEMP 'lum-singlefile-package'
+          $archivePath = Join-Path $env:RUNNER_TEMP 'LinuxUpdateManager-win-x64-singlefile.zip'
+          New-Item -ItemType Directory -Path $packageDirectory | Out-Null
+          Copy-Item -LiteralPath (Join-Path $publishDirectory 'LinuxUpdateManager.App.exe') -Destination (Join-Path $packageDirectory 'LinuxUpdateManager.exe')
+          Copy-Item -LiteralPath @('LICENSE', 'NOTICE') -Destination $packageDirectory
+          Compress-Archive -Path (Join-Path $packageDirectory '*') -DestinationPath $archivePath -CompressionLevel Fastest
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
+          try {
+            $entryNames = @($archive.Entries | ForEach-Object { $_.FullName } | Sort-Object)
+            $expectedEntries = @('LICENSE', 'LinuxUpdateManager.exe', 'NOTICE') | Sort-Object
+            if ($entryNames.Count -ne $expectedEntries.Count -or (Compare-Object $entryNames $expectedEntries)) {
+              throw 'The single-file release ZIP must contain only the app executable and license notices.'
+            }
+          } finally {
+            $archive.Dispose()
+          }
+        shell: pwsh
+
       - name: Sign update manifest and create SHA-256 checksum
         if: steps.prepare.outputs.release == 'true'
-        run: node .github/scripts/sign-release.mjs "$RUNNER_TEMP/LinuxUpdateManager-win-x64.zip" "$RUNNER_TEMP/lum-release-assets" "${{ steps.prepare.outputs.version }}"
+        run: node .github/scripts/sign-release.mjs "$RUNNER_TEMP/LinuxUpdateManager-win-x64.zip" "$RUNNER_TEMP/LinuxUpdateManager-win-x64-singlefile.zip" "$RUNNER_TEMP/lum-release-assets" "${{ steps.prepare.outputs.version }}"
         shell: bash
         env:
           UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}

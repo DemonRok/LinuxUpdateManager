@@ -217,7 +217,11 @@ async function main() {
         "LinuxUpdateManager-win-x64.zip",
         "LinuxUpdateManager-win-x64.zip.sha256",
         "update-manifest.json",
-        "update-manifest.sig"
+        "update-manifest.sig",
+        "LinuxUpdateManager-win-x64-singlefile.zip",
+        "LinuxUpdateManager-win-x64-singlefile.zip.sha256",
+        "singlefile-update-manifest.json",
+        "singlefile-update-manifest.sig"
       ]);
       if (release && [...expectedAssets].every(name => release.assets.some(asset => asset.name === name))) {
         note(`Release ${tags[0].tag} already exists with all expected assets; no duplicate was created.`);

@@ -20,7 +20,11 @@ const assetFiles = [
   "LinuxUpdateManager-win-x64.zip",
   "LinuxUpdateManager-win-x64.zip.sha256",
   "update-manifest.json",
-  "update-manifest.sig"
+  "update-manifest.sig",
+  "LinuxUpdateManager-win-x64-singlefile.zip",
+  "LinuxUpdateManager-win-x64-singlefile.zip.sha256",
+  "singlefile-update-manifest.json",
+  "singlefile-update-manifest.sig"
 ].map(name => ({ name, path: path.join(assetDirectory, name) }));
 
 function git(...args) {

@@ -18,6 +18,9 @@ internal sealed class ApplicationUpdateInstaller
 
     private readonly ApplicationUpdateService _updateService;
 
+    internal static bool IsSingleFileApplication =>
+        string.IsNullOrEmpty(Assembly.GetEntryAssembly()?.Location);
+
     public ApplicationUpdateInstaller(ApplicationUpdateService updateService)
     {
         _updateService = updateService;
@@ -44,7 +47,7 @@ internal sealed class ApplicationUpdateInstaller
             executableName is not (ApplicationExecutableName or LegacyApplicationExecutableName) ||
             !string.Equals(processDirectory, installDirectory, StringComparison.OrdinalIgnoreCase) ||
             !File.Exists(Path.Combine(installDirectory, ApplicationExecutableName)) ||
-            !File.Exists(Path.Combine(installDirectory, ApplicationAssemblyName)))
+            (!IsSingleFileApplication && !File.Exists(Path.Combine(installDirectory, ApplicationAssemblyName))))
         {
             throw new InvalidOperationException("The current application folder is not a supported installation.");
         }
@@ -80,8 +83,14 @@ internal sealed class ApplicationUpdateInstaller
             startInfo.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
             startInfo.ArgumentList.Add(installDirectory);
             startInfo.ArgumentList.Add(packagePath);
-            startInfo.ArgumentList.Add(Path.Combine(downloadDirectory, ApplicationUpdateService.ManifestAssetName));
-            startInfo.ArgumentList.Add(Path.Combine(downloadDirectory, ApplicationUpdateService.SignatureAssetName));
+            var manifestAssetName = release.SingleFilePackage
+                ? ApplicationUpdateService.SingleFileManifestAssetName
+                : ApplicationUpdateService.ManifestAssetName;
+            var signatureAssetName = release.SingleFilePackage
+                ? ApplicationUpdateService.SingleFileSignatureAssetName
+                : ApplicationUpdateService.SignatureAssetName;
+            startInfo.ArgumentList.Add(Path.Combine(downloadDirectory, manifestAssetName));
+            startInfo.ArgumentList.Add(Path.Combine(downloadDirectory, signatureAssetName));
             startInfo.ArgumentList.Add(workDirectory);
             startInfo.ArgumentList.Add(executableName);
 
@@ -146,11 +155,10 @@ internal sealed class ApplicationUpdateInstaller
         }
 
         var applicationPath = Path.Combine(installDirectory, args[7]);
-        var currentAssemblyPath = Path.Combine(installDirectory, ApplicationAssemblyName);
         if (!Directory.Exists(installDirectory) ||
             !File.Exists(Path.Combine(installDirectory, ApplicationExecutableName)) ||
             !File.Exists(applicationPath) ||
-            !File.Exists(currentAssemblyPath))
+            (!IsSingleFileApplication && !File.Exists(Path.Combine(installDirectory, ApplicationAssemblyName))))
         {
             throw new InvalidOperationException("The existing application installation could not be found.");
         }
@@ -180,7 +188,7 @@ internal sealed class ApplicationUpdateInstaller
             }
         }
 
-        var currentVersion = ReadAssemblyVersion(currentAssemblyPath);
+        var currentVersion = ReadCurrentApplicationVersion();
         var updateVersion = Version.Parse(manifest.Version);
         if (updateVersion <= currentVersion)
         {
@@ -195,12 +203,25 @@ internal sealed class ApplicationUpdateInstaller
 
         ExtractPackage(packagePath, payloadDirectory);
         var updatedExecutable = Path.Combine(payloadDirectory, ApplicationExecutableName);
-        var updatedAssembly = Path.Combine(payloadDirectory, ApplicationAssemblyName);
-        var legacyExecutable = Path.Combine(payloadDirectory, LegacyApplicationExecutableName);
-        if (!File.Exists(updatedExecutable) || !File.Exists(updatedAssembly) ||
-            !File.Exists(legacyExecutable) || ReadAssemblyVersion(updatedAssembly) != updateVersion)
+        if (!File.Exists(updatedExecutable))
         {
             throw new InvalidDataException("The signed package does not contain the expected application version.");
+        }
+
+        if (string.Equals(manifest.AssetName, ApplicationUpdateService.PackageAssetName, StringComparison.Ordinal))
+        {
+            var updatedAssembly = Path.Combine(payloadDirectory, ApplicationAssemblyName);
+            var legacyExecutable = Path.Combine(payloadDirectory, LegacyApplicationExecutableName);
+            if (!File.Exists(updatedAssembly) || !File.Exists(legacyExecutable) ||
+                ReadAssemblyVersion(updatedAssembly) != updateVersion)
+            {
+                throw new InvalidDataException("The signed package does not contain the expected application version.");
+            }
+        }
+        else if (!File.Exists(Path.Combine(payloadDirectory, "LICENSE")) ||
+                 !File.Exists(Path.Combine(payloadDirectory, "NOTICE")))
+        {
+            throw new InvalidDataException("The signed single-file package is missing its license notices.");
         }
 
         WaitForParentProcessExit(parentProcessId, applicationPath);
@@ -424,6 +445,13 @@ internal sealed class ApplicationUpdateInstaller
     {
         var version = AssemblyName.GetAssemblyName(assemblyPath).Version
             ?? throw new InvalidDataException("The application package does not include a version.");
+        return new Version(version.Major, version.Minor, Math.Max(version.Build, 0));
+    }
+
+    private static Version ReadCurrentApplicationVersion()
+    {
+        var version = Assembly.GetEntryAssembly()?.GetName().Version
+            ?? throw new InvalidDataException("The installed application version could not be determined.");
         return new Version(version.Major, version.Minor, Math.Max(version.Build, 0));
     }
 

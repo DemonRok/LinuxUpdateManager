@@ -3,12 +3,15 @@ import { constants, copyFileSync, createReadStream, mkdirSync, readFileSync, wri
 import path from "node:path";
 import { once } from "node:events";
 
-const [packagePath, assetDirectory, version] = process.argv.slice(2);
-if (!packagePath || !assetDirectory || !/^\d+\.\d+\.\d+$/.test(version || "")) {
-  throw new Error("Usage: node sign-release.mjs <package.zip> <asset-directory> <version>");
+const [packagePath, singleFilePackagePath, assetDirectory, version] = process.argv.slice(2);
+if (!packagePath || !singleFilePackagePath || !assetDirectory || !/^\d+\.\d+\.\d+$/.test(version || "")) {
+  throw new Error("Usage: node sign-release.mjs <package.zip> <single-file-package.zip> <asset-directory> <version>");
 }
 if (path.basename(packagePath) !== "LinuxUpdateManager-win-x64.zip") {
   throw new Error("The release package must be named LinuxUpdateManager-win-x64.zip.");
+}
+if (path.basename(singleFilePackagePath) !== "LinuxUpdateManager-win-x64-singlefile.zip") {
+  throw new Error("The single-file release package must be named LinuxUpdateManager-win-x64-singlefile.zip.");
 }
 
 const privatePem = process.env.UPDATE_SIGNING_PRIVATE_KEY?.replace(/\\n/g, "\n");
@@ -33,24 +36,29 @@ if (!pinnedDer.equals(derivedDer)) {
 }
 
 mkdirSync(assetDirectory, { recursive: true });
-const packageAssetPath = path.join(assetDirectory, path.basename(packagePath));
-copyFileSync(packagePath, packageAssetPath, constants.COPYFILE_EXCL);
+for (const package of [
+  { source: packagePath, manifestName: "update-manifest.json", signatureName: "update-manifest.sig" },
+  { source: singleFilePackagePath, manifestName: "singlefile-update-manifest.json", signatureName: "singlefile-update-manifest.sig" }
+]) {
+  const packageAssetPath = path.join(assetDirectory, path.basename(package.source));
+  copyFileSync(package.source, packageAssetPath, constants.COPYFILE_EXCL);
 
-const hash = createHash("sha256");
-const packageStream = createReadStream(packageAssetPath);
-packageStream.on("data", chunk => hash.update(chunk));
-await once(packageStream, "end");
-const sha256 = hash.digest("hex");
-const manifest = {
-  Version: version,
-  TagName: `v${version}`,
-  AssetName: path.basename(packageAssetPath),
-  Sha256: sha256
-};
-const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-const signature = sign("RSA-SHA256", manifestBytes, privateKey).toString("base64");
+  const hash = createHash("sha256");
+  const packageStream = createReadStream(packageAssetPath);
+  packageStream.on("data", chunk => hash.update(chunk));
+  await once(packageStream, "end");
+  const sha256 = hash.digest("hex");
+  const manifest = {
+    Version: version,
+    TagName: `v${version}`,
+    AssetName: path.basename(packageAssetPath),
+    Sha256: sha256
+  };
+  const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  const signature = sign("RSA-SHA256", manifestBytes, privateKey).toString("base64");
 
-writeFileSync(path.join(assetDirectory, "update-manifest.json"), manifestBytes, { flag: "wx" });
-writeFileSync(path.join(assetDirectory, "update-manifest.sig"), `${signature}\n`, { flag: "wx" });
-writeFileSync(path.join(assetDirectory, `${path.basename(packageAssetPath)}.sha256`), `${sha256}  ${path.basename(packageAssetPath)}\n`, { flag: "wx" });
-console.log(`Created signed release assets for ${path.basename(packageAssetPath)}.`);
+  writeFileSync(path.join(assetDirectory, package.manifestName), manifestBytes, { flag: "wx" });
+  writeFileSync(path.join(assetDirectory, package.signatureName), `${signature}\n`, { flag: "wx" });
+  writeFileSync(path.join(assetDirectory, `${path.basename(packageAssetPath)}.sha256`), `${sha256}  ${path.basename(packageAssetPath)}\n`, { flag: "wx" });
+  console.log(`Created signed release assets for ${path.basename(packageAssetPath)}.`);
+}

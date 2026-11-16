@@ -9,6 +9,9 @@ public sealed class ApplicationUpdateService : IDisposable
     public const string PackageAssetName = "LinuxUpdateManager-win-x64.zip";
     public const string ManifestAssetName = "update-manifest.json";
     public const string SignatureAssetName = "update-manifest.sig";
+    public const string SingleFilePackageAssetName = "LinuxUpdateManager-win-x64-singlefile.zip";
+    public const string SingleFileManifestAssetName = "singlefile-update-manifest.json";
+    public const string SingleFileSignatureAssetName = "singlefile-update-manifest.sig";
 
     private static readonly Uri LatestReleaseUri = new("https://api.github.com/repos/DemonRok/LinuxUpdateManager/releases/latest");
     private readonly HttpClient _httpClient;
@@ -33,7 +36,8 @@ public sealed class ApplicationUpdateService : IDisposable
 
     public async Task<ApplicationUpdateRelease?> CheckForUpdateAsync(
         Version currentVersion,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool singleFilePackage = false)
     {
         using var response = await _httpClient.GetAsync(LatestReleaseUri, cancellationToken);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -65,13 +69,17 @@ public sealed class ApplicationUpdateService : IDisposable
 
         var assets = root.GetProperty("assets").EnumerateArray()
             .ToDictionary(asset => asset.GetProperty("name").GetString() ?? string.Empty, StringComparer.Ordinal);
+        var packageAssetName = singleFilePackage ? SingleFilePackageAssetName : PackageAssetName;
+        var manifestAssetName = singleFilePackage ? SingleFileManifestAssetName : ManifestAssetName;
+        var signatureAssetName = singleFilePackage ? SingleFileSignatureAssetName : SignatureAssetName;
         return new ApplicationUpdateRelease(
             latestVersion,
             tagName,
             root.TryGetProperty("body", out var body) ? body.GetString() ?? string.Empty : string.Empty,
-            GetOfficialAssetUri(assets, PackageAssetName, tagName),
-            GetOfficialAssetUri(assets, ManifestAssetName, tagName),
-            GetOfficialAssetUri(assets, SignatureAssetName, tagName));
+            GetOfficialAssetUri(assets, packageAssetName, tagName),
+            GetOfficialAssetUri(assets, manifestAssetName, tagName),
+            GetOfficialAssetUri(assets, signatureAssetName, tagName),
+            singleFilePackage);
     }
 
     public async Task<string> DownloadAndVerifyPackageAsync(
@@ -92,14 +100,16 @@ public sealed class ApplicationUpdateService : IDisposable
         }
 
         var manifest = UpdatePackageManifest.VerifyAndParse(manifestBytes, signatureBytes, _publicKeyPem);
+        var expectedAssetName = release.SingleFilePackage ? SingleFilePackageAssetName : PackageAssetName;
         if (!Version.TryParse(manifest.Version, out var manifestVersion) || manifestVersion != release.Version ||
-            !string.Equals(manifest.TagName, release.TagName, StringComparison.Ordinal))
+            !string.Equals(manifest.TagName, release.TagName, StringComparison.Ordinal) ||
+            !string.Equals(manifest.AssetName, expectedAssetName, StringComparison.Ordinal))
         {
             throw new InvalidDataException("The signed update manifest does not match the selected GitHub release.");
         }
 
         Directory.CreateDirectory(workingDirectory);
-        var packagePath = Path.Combine(workingDirectory, PackageAssetName);
+        var packagePath = Path.Combine(workingDirectory, expectedAssetName);
         if (File.Exists(packagePath))
         {
             throw new IOException("A file with the update package name already exists in the staging folder.");
@@ -146,8 +156,10 @@ public sealed class ApplicationUpdateService : IDisposable
                 throw new CryptographicException("The downloaded update package checksum does not match its signed manifest.");
             }
 
-            await File.WriteAllBytesAsync(Path.Combine(workingDirectory, ManifestAssetName), manifestBytes, cancellationToken);
-            await File.WriteAllBytesAsync(Path.Combine(workingDirectory, SignatureAssetName), signatureBytes, cancellationToken);
+            var manifestAssetName = release.SingleFilePackage ? SingleFileManifestAssetName : ManifestAssetName;
+            var signatureAssetName = release.SingleFilePackage ? SingleFileSignatureAssetName : SignatureAssetName;
+            await File.WriteAllBytesAsync(Path.Combine(workingDirectory, manifestAssetName), manifestBytes, cancellationToken);
+            await File.WriteAllBytesAsync(Path.Combine(workingDirectory, signatureAssetName), signatureBytes, cancellationToken);
             return packagePath;
         }
         catch

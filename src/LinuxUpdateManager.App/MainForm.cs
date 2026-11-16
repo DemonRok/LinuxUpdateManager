@@ -628,7 +628,9 @@ internal sealed class MainForm : Form
         try
         {
             var currentVersion = GetType().Assembly.GetName().Version ?? new Version(0, 0, 0);
-            var release = await _applicationUpdateService.CheckForUpdateAsync(currentVersion);
+            var release = await _applicationUpdateService.CheckForUpdateAsync(
+                currentVersion,
+                singleFilePackage: ApplicationUpdateInstaller.IsSingleFileApplication);
             if (release is null)
             {
                 _status.Text = AppLocalizer.Get("StatusInventoryReady");
