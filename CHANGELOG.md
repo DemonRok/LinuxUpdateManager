@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-16
+
+### Added
+
+- publish app as LinuxUpdateManager.exe
+
+### Fixed
+
+- rename only the published application host
+
 ## [1.1.2] - 2026-11-16
 
 ### Fixed
