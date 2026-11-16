@@ -449,14 +449,19 @@ internal sealed class BackupManagerForm : Form
 
     private async void ImportClicked(object? sender, EventArgs e)
     {
-        using var dialog = new OpenFileDialog
+        string? filePath;
+        try
         {
-            Title = AppLocalizer.Get("BackupImport"),
-            Filter = AppLocalizer.Get("BackupFileFilter"),
-            CheckFileExists = true,
-            Multiselect = false
-        };
-        if (dialog.ShowDialog(this) != DialogResult.OK)
+            filePath = await ShowImportFileDialogAsync();
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(this, exception.Message, AppLocalizer.Get("BackupManagerTitle"),
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+
+        if (filePath is null)
         {
             return;
         }
@@ -465,7 +470,7 @@ internal sealed class BackupManagerForm : Form
         BackupPreview? openedPreview = null;
         try
         {
-            var preview = openedPreview = await OpenBackupWithPasswordAsync(dialog.FileName);
+            var preview = openedPreview = await OpenBackupWithPasswordAsync(filePath);
             using var review = new BackupImportReviewForm(preview, _inventory);
             if (review.ShowDialog(this) != DialogResult.OK)
             {
@@ -521,6 +526,43 @@ internal sealed class BackupManagerForm : Form
 
             SetBusy(false);
         }
+    }
+
+    private Task<string?> ShowImportFileDialogAsync()
+    {
+        var completion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ownerHandle = Handle;
+        var dialogThread = new Thread(() =>
+        {
+            try
+            {
+                using var dialog = new OpenFileDialog
+                {
+                    Title = AppLocalizer.Get("BackupImport"),
+                    Filter = AppLocalizer.Get("BackupFileFilter"),
+                    CheckFileExists = true,
+                    CheckPathExists = true,
+                    Multiselect = false,
+                    InitialDirectory = AppContext.BaseDirectory,
+                    AutoUpgradeEnabled = true,
+                    RestoreDirectory = true
+                };
+                var result = dialog.ShowDialog(new WindowHandleOwner(ownerHandle));
+                completion.TrySetResult(result == DialogResult.OK ? dialog.FileName : null);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "BackupImportFileDialog"
+        };
+
+        dialogThread.SetApartmentState(ApartmentState.STA);
+        dialogThread.Start();
+        return completion.Task;
     }
 
     private async Task<BackupPreview> OpenBackupWithPasswordAsync(string filePath)
