@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-16
+
+### Added
+
+- add runtime-dependent single-file package
+
+### Fixed
+
+- correct release signing script variable
+
 ## [1.2.0] - 2026-11-16
 
 ### Added
